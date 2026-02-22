@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Bloodhound" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:statusBarColor">@android:color/darker_gray</item>
+        <item name="android:navigationBarColor">@android:color/white</item>
+        <item name="android:colorPrimary">#C62828</item>
+        <item name="android:colorPrimaryDark">#8B0000</item>
+    </style>
+</resources>

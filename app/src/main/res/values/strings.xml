@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Bloodhound</string>
+    <string name="systolic">Systolic</string>
+    <string name="diastolic">Diastolic</string>
+    <string name="heart_rate">Heart Rate</string>
+    <string name="time_of_day">Time of Day</string>
+    <string name="med_timing">Med Timing</string>
+    <string name="activity_timing">Activity</string>
+    <string name="save">Save Reading</string>
+    <string name="export">Export to CSV</string>
+    <string name="export_success">Exported to %1$s</string>
+</resources>

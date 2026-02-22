@@ -1,0 +1,4 @@
+standalone/out/
+*.class
+bloodhound_export.csv
+standalone/bloodhound_data.txt
