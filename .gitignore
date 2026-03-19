@@ -1,4 +1,5 @@
 /target/
+/out/
 /health_records.json
 /health_records.backup.json
 /exports/
