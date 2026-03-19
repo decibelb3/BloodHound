@@ -30,25 +30,30 @@ This repository contains a standalone Java 17 implementation of the Bloodhound o
 
 ## Build and run
 
-Using JDK 17 directly:
+Using JDK 17 directly (no `rg` required):
 
 ```bash
 mkdir -p out
-javac -d out $(rg --files src/main/java --glob "*.java")
-java -cp out com.txstate.bloodhound.BloodhoundDesktopApplication
+javac -d out $(git ls-files '*.java')
 ```
 
-Alternative modern-themed UI:
+Run the current/recommended UI (modern-themed desktop):
 
 ```bash
 java -cp out com.txstate.bloodhound.BloodhoundModernDesktopApplication
+```
+
+Run the classic desktop UI:
+
+```bash
+java -cp out com.txstate.bloodhound.BloodhoundDesktopApplication
 ```
 
 Optional (if Maven is installed in your environment):
 
 ```bash
 mvn clean compile
-mvn exec:java -Dexec.mainClass=com.txstate.bloodhound.BloodhoundDesktopApplication
+mvn exec:java -Dexec.mainClass=com.txstate.bloodhound.BloodhoundModernDesktopApplication
 ```
 
 ### Console fallback
