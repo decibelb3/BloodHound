@@ -7,7 +7,7 @@ This repository contains a standalone Java 17 implementation of the Bloodhound o
 - `model` – record and analytics data models
 - `service` – validation, classification, analytics, export, and workflow orchestration
 - `storage` – JSON file persistence with backup-based recovery
-- `ui` – console-based local interface
+- `ui` – Swing desktop interfaces (classic + modern) and console fallback
 - `util` – shared result and parsing helpers
 
 ## Core SDS-aligned behaviors
@@ -36,6 +36,12 @@ Using JDK 17 directly:
 mkdir -p out
 javac -d out $(rg --files src/main/java --glob "*.java")
 java -cp out com.txstate.bloodhound.BloodhoundDesktopApplication
+```
+
+Alternative modern-themed UI:
+
+```bash
+java -cp out com.txstate.bloodhound.BloodhoundModernDesktopApplication
 ```
 
 Optional (if Maven is installed in your environment):
