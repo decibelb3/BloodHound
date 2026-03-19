@@ -35,14 +35,22 @@ Using JDK 17 directly:
 ```bash
 mkdir -p out
 javac -d out $(rg --files src/main/java --glob "*.java")
-java -cp out com.txstate.bloodhound.BloodhoundApplication
+java -cp out com.txstate.bloodhound.BloodhoundDesktopApplication
 ```
 
 Optional (if Maven is installed in your environment):
 
 ```bash
 mvn clean compile
-mvn exec:java -Dexec.mainClass=com.txstate.bloodhound.BloodhoundApplication
+mvn exec:java -Dexec.mainClass=com.txstate.bloodhound.BloodhoundDesktopApplication
+```
+
+### Console fallback
+
+The original console-driven flow is still available:
+
+```bash
+java -cp out com.txstate.bloodhound.BloodhoundApplication
 ```
 
 ## Notes
