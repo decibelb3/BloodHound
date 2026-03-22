@@ -38,6 +38,7 @@ import java.awt.GridLayout;
 import java.awt.Insets;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -53,6 +54,9 @@ public class ModernDesktopAppFrame extends JFrame {
     private static final Color ACCENT_POSITIVE = new Color(120, 208, 143);
     private static final Color ACCENT_WARNING = new Color(255, 166, 77);
     private static final Color ACCENT_DANGER = new Color(255, 117, 117);
+    private static final Color INPUT_BORDER = new Color(70, 76, 92);
+    private static final Color INPUT_BORDER_INVALID = new Color(214, 97, 97);
+    private static final Color INPUT_BG_INVALID = new Color(58, 38, 45);
     private static final Color TEXT_PRIMARY = new Color(235, 238, 245);
     private static final Color TEXT_MUTED = new Color(163, 172, 190);
     private static final Font FONT_TITLE = new Font("SansSerif", Font.BOLD, 22);
@@ -569,8 +573,9 @@ public class ModernDesktopAppFrame extends JFrame {
         textField.setForeground(TEXT_PRIMARY);
         textField.setCaretColor(TEXT_PRIMARY);
         textField.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(70, 76, 92)),
+                BorderFactory.createLineBorder(INPUT_BORDER),
                 BorderFactory.createEmptyBorder(6, 8, 6, 8)));
+        textField.setToolTipText(null);
     }
 
     private void styleComboBox(JComboBox<String> comboBox) {
@@ -578,7 +583,7 @@ public class ModernDesktopAppFrame extends JFrame {
         comboBox.setForeground(TEXT_PRIMARY);
         comboBox.setFont(FONT_BODY);
         comboBox.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(70, 76, 92)),
+                BorderFactory.createLineBorder(INPUT_BORDER),
                 BorderFactory.createEmptyBorder(2, 6, 2, 6)));
     }
 
@@ -594,38 +599,46 @@ public class ModernDesktopAppFrame extends JFrame {
     }
 
     private void handleSaveRecord() {
-        try {
-            HealthRecord draft = new HealthRecord();
-            draft.setSystolic(parseOptionalInteger("Systolic", systolicField.getText()));
-            draft.setDiastolic(parseOptionalInteger("Diastolic", diastolicField.getText()));
-            draft.setHeartRate(parseOptionalInteger("Heart Rate", heartRateField.getText()));
-            draft.setTotalCholesterol(parseOptionalInteger("Total Cholesterol", totalCholesterolField.getText()));
-            draft.setLdl(parseOptionalInteger("LDL", ldlField.getText()));
-            draft.setHdl(parseOptionalInteger("HDL", hdlField.getText()));
-            draft.setTriglycerides(parseOptionalInteger("Triglycerides", triglyceridesField.getText()));
-            draft.setTimeOfDay(selectedDropdownValue(timeOfDayCombo));
-            draft.setMedTiming(selectedDropdownValue(medTimingCombo));
-            draft.setActivityTiming(selectedDropdownValue(activityTimingCombo));
+        resetAddRecordInputStyles();
 
-            OperationResult<AddRecordResponse> result = recordManager.addRecord(draft);
-            if (!result.isSuccess()) {
-                showError(result.getMessage() + "\n- " + String.join("\n- ", result.getErrors()));
-                setStatus("Save failed.");
-                return;
-            }
+        List<String> inputErrors = new ArrayList<>();
+        HealthRecord draft = new HealthRecord();
+        draft.setSystolic(parseOptionalIntegerForInput("Systolic", systolicField, inputErrors));
+        draft.setDiastolic(parseOptionalIntegerForInput("Diastolic", diastolicField, inputErrors));
+        draft.setHeartRate(parseOptionalIntegerForInput("Heart Rate", heartRateField, inputErrors));
+        draft.setTotalCholesterol(parseOptionalIntegerForInput("Total Cholesterol", totalCholesterolField, inputErrors));
+        draft.setLdl(parseOptionalIntegerForInput("LDL", ldlField, inputErrors));
+        draft.setHdl(parseOptionalIntegerForInput("HDL", hdlField, inputErrors));
+        draft.setTriglycerides(parseOptionalIntegerForInput("Triglycerides", triglyceridesField, inputErrors));
+        draft.setTimeOfDay(selectedDropdownValue(timeOfDayCombo));
+        draft.setMedTiming(selectedDropdownValue(medTimingCombo));
+        draft.setActivityTiming(selectedDropdownValue(activityTimingCombo));
 
-            AddRecordResponse payload = result.getData();
-            StringBuilder message = new StringBuilder(result.getMessage())
-                    .append("\nSession ID: ").append(payload.getRecord().getSessionId());
-            if (!payload.getAlerts().isEmpty()) {
-                message.append("\n\nRisk alerts:\n- ").append(String.join("\n- ", payload.getAlerts()));
-            }
-            JOptionPane.showMessageDialog(this, message.toString(), "Record Saved", JOptionPane.INFORMATION_MESSAGE);
-            clearAddRecordForm();
-            refreshAllViews();
+        if (!inputErrors.isEmpty()) {
+            showValidationIssues(
+                    "Some fields use invalid input format.",
+                    inputErrors,
+                    "Please correct highlighted fields and try again.");
+            setStatus("Save failed. Fix highlighted numeric fields.");
+            return;
+        }
+
+        OperationResult<AddRecordResponse> result = recordManager.addRecord(draft);
+        if (!result.isSuccess()) {
+            highlightFieldsFromValidationErrors(result.getErrors());
+            showValidationIssues(result.getMessage(), result.getErrors(), "Review highlighted fields and save again.");
+            setStatus("Save failed. Validation requirements were not met.");
+            return;
+        }
+
+        AddRecordResponse payload = result.getData();
+        showSaveConfirmation(payload, result.getMessage());
+        clearAddRecordForm();
+        refreshAllViews();
+        if (payload.getAlerts().isEmpty()) {
             setStatus("Record saved at " + DateTimeUtil.formatEpochMillis(payload.getRecord().getTimestampEpochMillis()));
-        } catch (IllegalArgumentException e) {
-            showError(e.getMessage());
+        } else {
+            setStatus("Record saved with " + payload.getAlerts().size() + " risk alert(s).");
         }
     }
 
@@ -844,7 +857,8 @@ public class ModernDesktopAppFrame extends JFrame {
         }
     }
 
-    private Integer parseOptionalInteger(String fieldName, String value) {
+    private Integer parseOptionalIntegerForInput(String fieldName, JTextField field, List<String> inputErrors) {
+        String value = field.getText();
         String trimmed = value == null ? "" : value.trim();
         if (trimmed.isBlank()) {
             return null;
@@ -852,7 +866,10 @@ public class ModernDesktopAppFrame extends JFrame {
         try {
             return Integer.parseInt(trimmed);
         } catch (NumberFormatException e) {
-            throw new IllegalArgumentException(fieldName + " must be numeric.");
+            String error = fieldName + " must be numeric.";
+            inputErrors.add(error);
+            markFieldInvalid(field, error);
+            return null;
         }
     }
 
@@ -867,6 +884,7 @@ public class ModernDesktopAppFrame extends JFrame {
         timeOfDayCombo.setSelectedIndex(0);
         medTimingCombo.setSelectedIndex(0);
         activityTimingCombo.setSelectedIndex(0);
+        resetAddRecordInputStyles();
     }
 
     private String selectedDropdownValue(JComboBox<String> comboBox) {
@@ -876,6 +894,100 @@ public class ModernDesktopAppFrame extends JFrame {
         }
         String value = selected.toString().trim();
         return "Not Specified".equals(value) || value.isBlank() ? null : value;
+    }
+
+    private void resetAddRecordInputStyles() {
+        styleTextField(systolicField);
+        styleTextField(diastolicField);
+        styleTextField(heartRateField);
+        styleTextField(totalCholesterolField);
+        styleTextField(ldlField);
+        styleTextField(hdlField);
+        styleTextField(triglyceridesField);
+    }
+
+    private void markFieldInvalid(JTextField field, String tooltip) {
+        field.setBackground(INPUT_BG_INVALID);
+        field.setForeground(TEXT_PRIMARY);
+        field.setCaretColor(TEXT_PRIMARY);
+        field.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(INPUT_BORDER_INVALID),
+                BorderFactory.createEmptyBorder(6, 8, 6, 8)));
+        field.setToolTipText(tooltip);
+    }
+
+    private void highlightFieldsFromValidationErrors(List<String> errors) {
+        if (errors == null) {
+            return;
+        }
+        for (String error : errors) {
+            String normalized = error == null ? "" : error.toLowerCase();
+            if (normalized.contains("at least one health metric")) {
+                markFieldInvalid(systolicField, "Provide at least one metric value.");
+                markFieldInvalid(diastolicField, "Provide at least one metric value.");
+                markFieldInvalid(heartRateField, "Provide at least one metric value.");
+                markFieldInvalid(totalCholesterolField, "Provide at least one metric value.");
+                markFieldInvalid(ldlField, "Provide at least one metric value.");
+                markFieldInvalid(hdlField, "Provide at least one metric value.");
+                markFieldInvalid(triglyceridesField, "Provide at least one metric value.");
+            }
+            if (normalized.contains("systolic")) {
+                markFieldInvalid(systolicField, error);
+            }
+            if (normalized.contains("diastolic")) {
+                markFieldInvalid(diastolicField, error);
+            }
+            if (normalized.contains("heart rate")) {
+                markFieldInvalid(heartRateField, error);
+            }
+            if (normalized.contains("total cholesterol")) {
+                markFieldInvalid(totalCholesterolField, error);
+            }
+            if (normalized.contains("ldl")) {
+                markFieldInvalid(ldlField, error);
+            }
+            if (normalized.contains("hdl")) {
+                markFieldInvalid(hdlField, error);
+            }
+            if (normalized.contains("triglycerides")) {
+                markFieldInvalid(triglyceridesField, error);
+            }
+        }
+    }
+
+    private void showValidationIssues(String titleLine, List<String> errors, String footerLine) {
+        StringBuilder message = new StringBuilder(titleLine).append("\n");
+        if (errors != null && !errors.isEmpty()) {
+            message.append("\nDetails:\n");
+            for (String error : errors) {
+                message.append(" - ").append(error).append("\n");
+            }
+        }
+        message.append("\n").append(footerLine);
+        JOptionPane.showMessageDialog(this, message.toString(), "Validation Issue", JOptionPane.WARNING_MESSAGE);
+    }
+
+    private void showSaveConfirmation(AddRecordResponse payload, String baseMessage) {
+        HealthRecord saved = payload.getRecord();
+        List<String> alerts = payload.getAlerts();
+
+        StringBuilder message = new StringBuilder(baseMessage)
+                .append("\nSession ID: ").append(saved.getSessionId())
+                .append("\nRecorded: ").append(DateTimeUtil.formatEpochMillis(saved.getTimestampEpochMillis()))
+                .append("\nBlood Pressure Category: ").append(valueOrFallback(saved.getBloodPressureCategory(), "Not provided"))
+                .append("\nLipid Summary: ").append(valueOrFallback(saved.getLipidSummary(), "Not provided"));
+
+        int dialogType = JOptionPane.INFORMATION_MESSAGE;
+        String dialogTitle = "Record Saved";
+        if (alerts.isEmpty()) {
+            message.append("\n\nNo risk alerts were detected for this entry.");
+        } else {
+            dialogType = JOptionPane.WARNING_MESSAGE;
+            dialogTitle = "Record Saved - Risk Alerts";
+            message.append("\n\nRisk Alerts (Review):\n - ").append(String.join("\n - ", alerts));
+        }
+
+        JOptionPane.showMessageDialog(this, message.toString(), dialogTitle, dialogType);
     }
 
     private String buildTagSummary(HealthRecord record) {
