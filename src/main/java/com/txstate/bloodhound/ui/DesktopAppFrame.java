@@ -237,16 +237,16 @@ public class DesktopAppFrame extends JFrame {
     private void handleSaveRecord() {
         try {
             HealthRecord draft = new HealthRecord();
-            draft.setSystolic(parseOptionalInteger("Systolic", systolicField.getText()));
-            draft.setDiastolic(parseOptionalInteger("Diastolic", diastolicField.getText()));
-            draft.setHeartRate(parseOptionalInteger("Heart Rate", heartRateField.getText()));
-            draft.setTotalCholesterol(parseOptionalInteger("Total Cholesterol", totalCholesterolField.getText()));
-            draft.setLdl(parseOptionalInteger("LDL", ldlField.getText()));
-            draft.setHdl(parseOptionalInteger("HDL", hdlField.getText()));
-            draft.setTriglycerides(parseOptionalInteger("Triglycerides", triglyceridesField.getText()));
-            draft.setTimeOfDay(nullIfBlank(timeOfDayField.getText()));
-            draft.setMedTiming(nullIfBlank(medTimingField.getText()));
-            draft.setActivityTiming(nullIfBlank(activityTimingField.getText()));
+            draft.setSystolic(UiRecordHelper.parseOptionalInteger("Systolic", systolicField.getText()));
+            draft.setDiastolic(UiRecordHelper.parseOptionalInteger("Diastolic", diastolicField.getText()));
+            draft.setHeartRate(UiRecordHelper.parseOptionalInteger("Heart Rate", heartRateField.getText()));
+            draft.setTotalCholesterol(UiRecordHelper.parseOptionalInteger("Total Cholesterol", totalCholesterolField.getText()));
+            draft.setLdl(UiRecordHelper.parseOptionalInteger("LDL", ldlField.getText()));
+            draft.setHdl(UiRecordHelper.parseOptionalInteger("HDL", hdlField.getText()));
+            draft.setTriglycerides(UiRecordHelper.parseOptionalInteger("Triglycerides", triglyceridesField.getText()));
+            draft.setTimeOfDay(UiRecordHelper.nullIfBlank(timeOfDayField.getText()));
+            draft.setMedTiming(UiRecordHelper.nullIfBlank(medTimingField.getText()));
+            draft.setActivityTiming(UiRecordHelper.nullIfBlank(activityTimingField.getText()));
 
             OperationResult<AddRecordResponse> result = recordManager.addRecord(draft);
             if (!result.isSuccess()) {
@@ -272,8 +272,8 @@ public class DesktopAppFrame extends JFrame {
 
     private void handleApplyDateFilter() {
         try {
-            LocalDate startDate = parseDateField("Start Date", startDateFilterField.getText());
-            LocalDate endDate = parseDateField("End Date", endDateFilterField.getText());
+            LocalDate startDate = UiRecordHelper.parseDateField("Start Date", startDateFilterField.getText());
+            LocalDate endDate = UiRecordHelper.parseDateField("End Date", endDateFilterField.getText());
 
             OperationResult<List<HealthRecord>> result = recordManager.filterRecordsByDateRange(startDate, endDate);
             if (!result.isSuccess()) {
@@ -333,18 +333,18 @@ public class DesktopAppFrame extends JFrame {
         historyTableModel.setRowCount(0);
         for (HealthRecord record : records) {
             historyTableModel.addRow(new Object[]{
-                    valueOrBlank(record.getSessionId()),
+                    UiRecordHelper.valueOrBlank(record.getSessionId()),
                     DateTimeUtil.formatEpochMillis(record.getTimestampEpochMillis()),
-                    valueOrBlank(record.getBloodPressureCategory()),
-                    valueOrBlank(record.getSystolic()),
-                    valueOrBlank(record.getDiastolic()),
-                    valueOrBlank(record.getHeartRate()),
-                    valueOrBlank(record.getTotalCholesterol()),
-                    valueOrBlank(record.getLdl()),
-                    valueOrBlank(record.getHdl()),
-                    valueOrBlank(record.getTriglycerides()),
-                    buildTagSummary(record),
-                    valueOrBlank(record.getLipidSummary())
+                    UiRecordHelper.valueOrBlank(record.getBloodPressureCategory()),
+                    UiRecordHelper.valueOrBlank(record.getSystolic()),
+                    UiRecordHelper.valueOrBlank(record.getDiastolic()),
+                    UiRecordHelper.valueOrBlank(record.getHeartRate()),
+                    UiRecordHelper.valueOrBlank(record.getTotalCholesterol()),
+                    UiRecordHelper.valueOrBlank(record.getLdl()),
+                    UiRecordHelper.valueOrBlank(record.getHdl()),
+                    UiRecordHelper.valueOrBlank(record.getTriglycerides()),
+                    UiRecordHelper.buildTagSummary(record),
+                    UiRecordHelper.valueOrBlank(record.getLipidSummary())
             });
         }
     }
@@ -353,13 +353,13 @@ public class DesktopAppFrame extends JFrame {
         AnalyticsResult analytics = recordManager.viewAnalytics();
         StringBuilder builder = new StringBuilder();
         builder.append("Averages").append("\n")
-                .append(" - Systolic: ").append(formatDouble(analytics.getAverageSystolic())).append("\n")
-                .append(" - Diastolic: ").append(formatDouble(analytics.getAverageDiastolic())).append("\n")
-                .append(" - Heart Rate: ").append(formatDouble(analytics.getAverageHeartRate())).append("\n")
-                .append(" - Total Cholesterol: ").append(formatDouble(analytics.getAverageTotalCholesterol())).append("\n")
-                .append(" - LDL: ").append(formatDouble(analytics.getAverageLdl())).append("\n")
-                .append(" - HDL: ").append(formatDouble(analytics.getAverageHdl())).append("\n")
-                .append(" - Triglycerides: ").append(formatDouble(analytics.getAverageTriglycerides())).append("\n\n")
+                .append(" - Systolic: ").append(UiRecordHelper.formatDouble(analytics.getAverageSystolic())).append("\n")
+                .append(" - Diastolic: ").append(UiRecordHelper.formatDouble(analytics.getAverageDiastolic())).append("\n")
+                .append(" - Heart Rate: ").append(UiRecordHelper.formatDouble(analytics.getAverageHeartRate())).append("\n")
+                .append(" - Total Cholesterol: ").append(UiRecordHelper.formatDouble(analytics.getAverageTotalCholesterol())).append("\n")
+                .append(" - LDL: ").append(UiRecordHelper.formatDouble(analytics.getAverageLdl())).append("\n")
+                .append(" - HDL: ").append(UiRecordHelper.formatDouble(analytics.getAverageHdl())).append("\n")
+                .append(" - Triglycerides: ").append(UiRecordHelper.formatDouble(analytics.getAverageTriglycerides())).append("\n\n")
                 .append("Blood Pressure Category Counts").append("\n");
 
         if (analytics.getBloodPressureCategoryCounts().isEmpty()) {
@@ -374,7 +374,7 @@ public class DesktopAppFrame extends JFrame {
         for (String alert : analytics.getAlertSummaries()) {
             builder.append(" - ").append(alert).append("\n");
         }
-        builder.append("\nTrend\n - ").append(valueOrBlank(analytics.getTrendSummary()));
+        builder.append("\nTrend\n - ").append(UiRecordHelper.valueOrBlank(analytics.getTrendSummary()));
 
         analyticsTextArea.setText(builder.toString());
         analyticsTextArea.setCaretPosition(0);
@@ -402,30 +402,6 @@ public class DesktopAppFrame extends JFrame {
         return "Storage status: Primary storage loaded";
     }
 
-    private LocalDate parseDateField(String fieldName, String value) {
-        String trimmed = value == null ? "" : value.trim();
-        if (trimmed.isBlank()) {
-            throw new IllegalArgumentException(fieldName + " is required (format: YYYY-MM-DD).");
-        }
-        try {
-            return LocalDate.parse(trimmed);
-        } catch (Exception e) {
-            throw new IllegalArgumentException(fieldName + " must use format YYYY-MM-DD.");
-        }
-    }
-
-    private Integer parseOptionalInteger(String fieldName, String value) {
-        String trimmed = value == null ? "" : value.trim();
-        if (trimmed.isBlank()) {
-            return null;
-        }
-        try {
-            return Integer.parseInt(trimmed);
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException(fieldName + " must be numeric.");
-        }
-    }
-
     private void clearAddRecordForm() {
         systolicField.setText("");
         diastolicField.setText("");
@@ -437,25 +413,6 @@ public class DesktopAppFrame extends JFrame {
         timeOfDayField.setText("");
         medTimingField.setText("");
         activityTimingField.setText("");
-    }
-
-    private String nullIfBlank(String value) {
-        String trimmed = value == null ? "" : value.trim();
-        return trimmed.isBlank() ? null : trimmed;
-    }
-
-    private String buildTagSummary(HealthRecord record) {
-        return "timeOfDay=" + valueOrBlank(record.getTimeOfDay())
-                + ", medTiming=" + valueOrBlank(record.getMedTiming())
-                + ", activityTiming=" + valueOrBlank(record.getActivityTiming());
-    }
-
-    private String formatDouble(Double value) {
-        return value == null ? "N/A" : String.format("%.1f", value);
-    }
-
-    private String valueOrBlank(Object value) {
-        return value == null ? "" : String.valueOf(value);
     }
 
     private void showError(String message) {

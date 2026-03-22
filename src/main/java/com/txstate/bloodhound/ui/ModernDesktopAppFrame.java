@@ -769,8 +769,8 @@ public class ModernDesktopAppFrame extends JFrame {
 
     private void handleApplyDateFilter() {
         try {
-            LocalDate startDate = parseDateField("Start Date", startDateFilterField.getText());
-            LocalDate endDate = parseDateField("End Date", endDateFilterField.getText());
+            LocalDate startDate = UiRecordHelper.parseDateField("Start Date", startDateFilterField.getText());
+            LocalDate endDate = UiRecordHelper.parseDateField("End Date", endDateFilterField.getText());
 
             OperationResult<List<HealthRecord>> result = recordManager.filterRecordsByDateRange(startDate, endDate);
             if (!result.isSuccess()) {
@@ -831,31 +831,31 @@ public class ModernDesktopAppFrame extends JFrame {
         historyTableModel.setRowCount(0);
         for (HealthRecord record : records) {
             historyTableModel.addRow(new Object[]{
-                    valueOrBlank(record.getSessionId()),
+                    UiRecordHelper.valueOrBlank(record.getSessionId()),
                     DateTimeUtil.formatEpochMillis(record.getTimestampEpochMillis()),
-                    valueOrBlank(record.getBloodPressureCategory()),
-                    valueOrBlank(record.getSystolic()),
-                    valueOrBlank(record.getDiastolic()),
-                    valueOrBlank(record.getHeartRate()),
-                    valueOrBlank(record.getTotalCholesterol()),
-                    valueOrBlank(record.getLdl()),
-                    valueOrBlank(record.getHdl()),
-                    valueOrBlank(record.getTriglycerides()),
-                    buildTagSummary(record),
-                    valueOrBlank(record.getLipidSummary())
+                    UiRecordHelper.valueOrBlank(record.getBloodPressureCategory()),
+                    UiRecordHelper.valueOrBlank(record.getSystolic()),
+                    UiRecordHelper.valueOrBlank(record.getDiastolic()),
+                    UiRecordHelper.valueOrBlank(record.getHeartRate()),
+                    UiRecordHelper.valueOrBlank(record.getTotalCholesterol()),
+                    UiRecordHelper.valueOrBlank(record.getLdl()),
+                    UiRecordHelper.valueOrBlank(record.getHdl()),
+                    UiRecordHelper.valueOrBlank(record.getTriglycerides()),
+                    UiRecordHelper.buildTagSummary(record),
+                    UiRecordHelper.valueOrBlank(record.getLipidSummary())
             });
         }
     }
 
     private void refreshAnalyticsView() {
         AnalyticsResult analytics = recordManager.viewAnalytics();
-        analyticsAvgSystolicLabel.setText(formatDouble(analytics.getAverageSystolic()));
-        analyticsAvgDiastolicLabel.setText(formatDouble(analytics.getAverageDiastolic()));
-        analyticsAvgHeartRateLabel.setText(formatDouble(analytics.getAverageHeartRate()));
-        analyticsAvgTotalCholesterolLabel.setText(formatDouble(analytics.getAverageTotalCholesterol()));
-        analyticsAvgLdlLabel.setText(formatDouble(analytics.getAverageLdl()));
-        analyticsAvgHdlLabel.setText(formatDouble(analytics.getAverageHdl()));
-        analyticsAvgTriglyceridesLabel.setText(formatDouble(analytics.getAverageTriglycerides()));
+        analyticsAvgSystolicLabel.setText(UiRecordHelper.formatDouble(analytics.getAverageSystolic()));
+        analyticsAvgDiastolicLabel.setText(UiRecordHelper.formatDouble(analytics.getAverageDiastolic()));
+        analyticsAvgHeartRateLabel.setText(UiRecordHelper.formatDouble(analytics.getAverageHeartRate()));
+        analyticsAvgTotalCholesterolLabel.setText(UiRecordHelper.formatDouble(analytics.getAverageTotalCholesterol()));
+        analyticsAvgLdlLabel.setText(UiRecordHelper.formatDouble(analytics.getAverageLdl()));
+        analyticsAvgHdlLabel.setText(UiRecordHelper.formatDouble(analytics.getAverageHdl()));
+        analyticsAvgTriglyceridesLabel.setText(UiRecordHelper.formatDouble(analytics.getAverageTriglycerides()));
 
         analyticsCategoryCountsArea.setText(buildCategoryCountsSummary(analytics.getBloodPressureCategoryCounts()));
         analyticsCategoryCountsArea.setCaretPosition(0);
@@ -1032,18 +1032,6 @@ public class ModernDesktopAppFrame extends JFrame {
         return TEXT_PRIMARY;
     }
 
-    private LocalDate parseDateField(String fieldName, String value) {
-        String trimmed = value == null ? "" : value.trim();
-        if (trimmed.isBlank()) {
-            throw new IllegalArgumentException(fieldName + " is required (format: YYYY-MM-DD).");
-        }
-        try {
-            return LocalDate.parse(trimmed);
-        } catch (Exception e) {
-            throw new IllegalArgumentException(fieldName + " must use format YYYY-MM-DD.");
-        }
-    }
-
     private Integer parseOptionalIntegerForInput(String fieldName, JTextField field, List<String> inputErrors) {
         String value = field.getText();
         String trimmed = value == null ? "" : value.trim();
@@ -1175,20 +1163,6 @@ public class ModernDesktopAppFrame extends JFrame {
         }
 
         JOptionPane.showMessageDialog(this, message.toString(), dialogTitle, dialogType);
-    }
-
-    private String buildTagSummary(HealthRecord record) {
-        return "timeOfDay=" + valueOrBlank(record.getTimeOfDay())
-                + ", medTiming=" + valueOrBlank(record.getMedTiming())
-                + ", activityTiming=" + valueOrBlank(record.getActivityTiming());
-    }
-
-    private String formatDouble(Double value) {
-        return value == null ? "N/A" : String.format("%.1f", value);
-    }
-
-    private String valueOrBlank(Object value) {
-        return value == null ? "" : String.valueOf(value);
     }
 
     private String valueOrDash(Object value) {
