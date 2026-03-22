@@ -39,8 +39,10 @@ import java.awt.Insets;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Modern themed Swing desktop UI variant for Bloodhound.
@@ -101,7 +103,16 @@ public class ModernDesktopAppFrame extends JFrame {
         }
     };
     private final JTable historyTable = new JTable(historyTableModel);
-    private final JTextArea analyticsTextArea = new JTextArea();
+    private final JLabel analyticsAvgSystolicLabel = new JLabel("N/A");
+    private final JLabel analyticsAvgDiastolicLabel = new JLabel("N/A");
+    private final JLabel analyticsAvgHeartRateLabel = new JLabel("N/A");
+    private final JLabel analyticsAvgTotalCholesterolLabel = new JLabel("N/A");
+    private final JLabel analyticsAvgLdlLabel = new JLabel("N/A");
+    private final JLabel analyticsAvgHdlLabel = new JLabel("N/A");
+    private final JLabel analyticsAvgTriglyceridesLabel = new JLabel("N/A");
+    private final JLabel analyticsTrendSummaryLabel = new JLabel("No trend data yet");
+    private final JTextArea analyticsCategoryCountsArea = new JTextArea();
+    private final JTextArea analyticsAlertsArea = new JTextArea();
     private final JTextField exportPathField = new JTextField("exports/bloodhound_export_modern.csv", 35);
 
     public ModernDesktopAppFrame(RecordManager recordManager, StorageInitializationResult initializationResult) {
@@ -348,21 +359,50 @@ public class ModernDesktopAppFrame extends JFrame {
         JButton refresh = createAccentButton("Refresh Analytics");
         refresh.addActionListener(e -> refreshAnalyticsView());
         toolbar.add(refresh);
+        toolbar.add(createMutedLabel("Snapshot refreshes automatically after saving records."));
 
-        analyticsTextArea.setEditable(false);
-        analyticsTextArea.setBackground(BG_PANEL_ALT);
-        analyticsTextArea.setForeground(TEXT_PRIMARY);
-        analyticsTextArea.setFont(new Font("Monospaced", Font.PLAIN, 13));
-        analyticsTextArea.setLineWrap(true);
-        analyticsTextArea.setWrapStyleWord(true);
-        analyticsTextArea.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+        JPanel keyMetrics = new JPanel(new GridLayout(1, 4, 12, 12));
+        keyMetrics.setOpaque(false);
+        keyMetrics.add(createAnalyticsMetricCard("Avg Systolic", "mmHg", analyticsAvgSystolicLabel));
+        keyMetrics.add(createAnalyticsMetricCard("Avg Diastolic", "mmHg", analyticsAvgDiastolicLabel));
+        keyMetrics.add(createAnalyticsMetricCard("Avg Heart Rate", "bpm", analyticsAvgHeartRateLabel));
+        keyMetrics.add(createAnalyticsMetricCard("Avg Total Cholesterol", "mg/dL", analyticsAvgTotalCholesterolLabel));
 
-        JScrollPane areaScroll = new JScrollPane(analyticsTextArea);
-        areaScroll.getViewport().setBackground(BG_PANEL_ALT);
-        areaScroll.setBorder(compoundCardBorder());
+        JPanel middleRow = new JPanel(new GridLayout(1, 2, 12, 12));
+        middleRow.setOpaque(false);
+        middleRow.add(createAnalyticsLipidCard());
+        middleRow.add(createAnalyticsTrendCard());
+
+        styleAnalyticsArea(analyticsCategoryCountsArea);
+        styleAnalyticsArea(analyticsAlertsArea);
+
+        JPanel categoryCard = createPanelCard("Blood Pressure Category Counts");
+        categoryCard.setLayout(new BorderLayout());
+        JScrollPane categoryScroll = new JScrollPane(analyticsCategoryCountsArea);
+        categoryScroll.getViewport().setBackground(BG_PANEL_ALT);
+        categoryScroll.setBorder(BorderFactory.createEmptyBorder());
+        categoryCard.add(categoryScroll, BorderLayout.CENTER);
+
+        JPanel alertsCard = createPanelCard("Alert Summaries");
+        alertsCard.setLayout(new BorderLayout());
+        JScrollPane alertsScroll = new JScrollPane(analyticsAlertsArea);
+        alertsScroll.getViewport().setBackground(BG_PANEL_ALT);
+        alertsScroll.setBorder(BorderFactory.createEmptyBorder());
+        alertsCard.add(alertsScroll, BorderLayout.CENTER);
+
+        JPanel bottomRow = new JPanel(new GridLayout(1, 2, 12, 12));
+        bottomRow.setOpaque(false);
+        bottomRow.add(categoryCard);
+        bottomRow.add(alertsCard);
+
+        JPanel analyticsDashboard = new JPanel(new BorderLayout(12, 12));
+        analyticsDashboard.setOpaque(false);
+        analyticsDashboard.add(keyMetrics, BorderLayout.NORTH);
+        analyticsDashboard.add(middleRow, BorderLayout.CENTER);
+        analyticsDashboard.add(bottomRow, BorderLayout.SOUTH);
 
         container.add(toolbar, BorderLayout.NORTH);
-        container.add(areaScroll, BorderLayout.CENTER);
+        container.add(analyticsDashboard, BorderLayout.CENTER);
         return container;
     }
 
@@ -523,6 +563,87 @@ public class ModernDesktopAppFrame extends JFrame {
         area.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
         card.add(area, BorderLayout.CENTER);
         return card;
+    }
+
+    private JPanel createAnalyticsMetricCard(String title, String unit, JLabel valueLabel) {
+        JPanel card = createPanelCard(title);
+        card.setLayout(new BorderLayout(0, 6));
+
+        valueLabel.setForeground(TEXT_PRIMARY);
+        valueLabel.setFont(new Font("SansSerif", Font.BOLD, 23));
+        valueLabel.setBorder(BorderFactory.createEmptyBorder(12, 12, 0, 12));
+
+        JLabel unitLabel = new JLabel(unit);
+        unitLabel.setForeground(TEXT_MUTED);
+        unitLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        unitLabel.setBorder(BorderFactory.createEmptyBorder(0, 12, 10, 12));
+
+        card.add(valueLabel, BorderLayout.CENTER);
+        card.add(unitLabel, BorderLayout.SOUTH);
+        return card;
+    }
+
+    private JPanel createAnalyticsLipidCard() {
+        JPanel card = createPanelCard("Lipid Averages");
+        card.setLayout(new GridLayout(3, 1, 0, 6));
+        card.add(createAnalyticsLine("LDL", analyticsAvgLdlLabel, "mg/dL"));
+        card.add(createAnalyticsLine("HDL", analyticsAvgHdlLabel, "mg/dL"));
+        card.add(createAnalyticsLine("Triglycerides", analyticsAvgTriglyceridesLabel, "mg/dL"));
+        return card;
+    }
+
+    private JPanel createAnalyticsTrendCard() {
+        JPanel card = createPanelCard("Trend Summary");
+        card.setLayout(new BorderLayout(0, 8));
+
+        analyticsTrendSummaryLabel.setForeground(TEXT_PRIMARY);
+        analyticsTrendSummaryLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
+        analyticsTrendSummaryLabel.setBorder(BorderFactory.createEmptyBorder(12, 12, 0, 12));
+
+        JLabel hint = createMutedLabel("Trend compares recent systolic readings against earlier sessions.");
+        hint.setBorder(BorderFactory.createEmptyBorder(0, 12, 10, 12));
+
+        card.add(analyticsTrendSummaryLabel, BorderLayout.CENTER);
+        card.add(hint, BorderLayout.SOUTH);
+        return card;
+    }
+
+    private JPanel createAnalyticsLine(String metricName, JLabel valueLabel, String unit) {
+        JPanel row = new JPanel(new BorderLayout());
+        row.setOpaque(false);
+
+        JLabel nameLabel = new JLabel(metricName);
+        nameLabel.setForeground(TEXT_MUTED);
+        nameLabel.setFont(FONT_BODY);
+        nameLabel.setBorder(BorderFactory.createEmptyBorder(0, 12, 0, 6));
+
+        valueLabel.setForeground(TEXT_PRIMARY);
+        valueLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
+        valueLabel.setHorizontalAlignment(JLabel.RIGHT);
+
+        JLabel unitLabel = new JLabel(unit);
+        unitLabel.setForeground(TEXT_MUTED);
+        unitLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        unitLabel.setBorder(BorderFactory.createEmptyBorder(0, 6, 0, 12));
+
+        JPanel valuePanel = new JPanel(new BorderLayout());
+        valuePanel.setOpaque(false);
+        valuePanel.add(valueLabel, BorderLayout.CENTER);
+        valuePanel.add(unitLabel, BorderLayout.EAST);
+
+        row.add(nameLabel, BorderLayout.WEST);
+        row.add(valuePanel, BorderLayout.CENTER);
+        return row;
+    }
+
+    private void styleAnalyticsArea(JTextArea area) {
+        area.setEditable(false);
+        area.setBackground(BG_PANEL_ALT);
+        area.setForeground(TEXT_PRIMARY);
+        area.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        area.setLineWrap(true);
+        area.setWrapStyleWord(true);
+        area.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
     }
 
     private Border compoundCardBorder() {
@@ -724,34 +845,56 @@ public class ModernDesktopAppFrame extends JFrame {
 
     private void refreshAnalyticsView() {
         AnalyticsResult analytics = recordManager.viewAnalytics();
-        StringBuilder builder = new StringBuilder();
-        builder.append("Averages\n")
-                .append("  Systolic: ").append(formatDouble(analytics.getAverageSystolic())).append("\n")
-                .append("  Diastolic: ").append(formatDouble(analytics.getAverageDiastolic())).append("\n")
-                .append("  Heart Rate: ").append(formatDouble(analytics.getAverageHeartRate())).append("\n")
-                .append("  Total Cholesterol: ").append(formatDouble(analytics.getAverageTotalCholesterol())).append("\n")
-                .append("  LDL: ").append(formatDouble(analytics.getAverageLdl())).append("\n")
-                .append("  HDL: ").append(formatDouble(analytics.getAverageHdl())).append("\n")
-                .append("  Triglycerides: ").append(formatDouble(analytics.getAverageTriglycerides())).append("\n\n")
-                .append("Blood Pressure Category Counts\n");
+        analyticsAvgSystolicLabel.setText(formatDouble(analytics.getAverageSystolic()));
+        analyticsAvgDiastolicLabel.setText(formatDouble(analytics.getAverageDiastolic()));
+        analyticsAvgHeartRateLabel.setText(formatDouble(analytics.getAverageHeartRate()));
+        analyticsAvgTotalCholesterolLabel.setText(formatDouble(analytics.getAverageTotalCholesterol()));
+        analyticsAvgLdlLabel.setText(formatDouble(analytics.getAverageLdl()));
+        analyticsAvgHdlLabel.setText(formatDouble(analytics.getAverageHdl()));
+        analyticsAvgTriglyceridesLabel.setText(formatDouble(analytics.getAverageTriglycerides()));
 
-        if (analytics.getBloodPressureCategoryCounts().isEmpty()) {
-            builder.append("  No records.\n");
-        } else {
-            for (Map.Entry<String, Integer> entry : analytics.getBloodPressureCategoryCounts().entrySet()) {
-                builder.append("  ").append(entry.getKey()).append(": ").append(entry.getValue()).append("\n");
-            }
-        }
+        analyticsCategoryCountsArea.setText(buildCategoryCountsSummary(analytics.getBloodPressureCategoryCounts()));
+        analyticsCategoryCountsArea.setCaretPosition(0);
+        analyticsAlertsArea.setText(buildAlertSummary(analytics.getAlertSummaries()));
+        analyticsAlertsArea.setCaretPosition(0);
 
-        builder.append("\nAlerts\n");
-        for (String alert : analytics.getAlertSummaries()) {
-            builder.append("  - ").append(alert).append("\n");
-        }
-        builder.append("\nTrend\n  ").append(valueOrBlank(analytics.getTrendSummary()));
-        analyticsTextArea.setText(builder.toString());
-        analyticsTextArea.setCaretPosition(0);
+        analyticsTrendSummaryLabel.setText(valueOrFallback(analytics.getTrendSummary(), "No trend data yet"));
+        analyticsTrendSummaryLabel.setForeground(colorForTrend(analytics.getTrendSummary()));
         dashboardTrendLabel.setText(valueOrFallback(analytics.getTrendSummary(), "No trend data yet"));
         dashboardTrendLabel.setForeground(colorForTrend(analytics.getTrendSummary()));
+    }
+
+    private String buildCategoryCountsSummary(Map<String, Integer> counts) {
+        if (counts == null || counts.isEmpty()) {
+            return "No records.";
+        }
+        StringBuilder builder = new StringBuilder();
+        String[] preferredOrder = {"Crisis", "Stage 2", "Stage 1", "Elevated", "Normal", "Not Provided", "Unclassified"};
+        Set<String> consumed = new HashSet<>();
+        for (String category : preferredOrder) {
+            Integer count = counts.get(category);
+            if (count != null) {
+                builder.append(category).append(": ").append(count).append("\n");
+                consumed.add(category);
+            }
+        }
+        for (Map.Entry<String, Integer> entry : counts.entrySet()) {
+            if (!consumed.contains(entry.getKey())) {
+                builder.append(entry.getKey()).append(": ").append(entry.getValue()).append("\n");
+            }
+        }
+        return builder.toString().trim();
+    }
+
+    private String buildAlertSummary(List<String> alerts) {
+        if (alerts == null || alerts.isEmpty()) {
+            return "No alerts available.";
+        }
+        StringBuilder builder = new StringBuilder();
+        for (String alert : alerts) {
+            builder.append("- ").append(alert).append("\n");
+        }
+        return builder.toString().trim();
     }
 
     private void showStartupMessages() {
