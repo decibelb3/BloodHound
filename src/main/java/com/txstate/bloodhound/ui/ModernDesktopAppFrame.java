@@ -12,6 +12,7 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -77,9 +78,11 @@ public class ModernDesktopAppFrame extends JFrame {
     private final JTextField ldlField = new JTextField();
     private final JTextField hdlField = new JTextField();
     private final JTextField triglyceridesField = new JTextField();
-    private final JTextField timeOfDayField = new JTextField();
-    private final JTextField medTimingField = new JTextField();
-    private final JTextField activityTimingField = new JTextField();
+    private final JComboBox<String> timeOfDayCombo = createTagDropdown("Morning", "Afternoon", "Evening");
+    private final JComboBox<String> medTimingCombo = createTagDropdown(
+            "Before Medication", "After Medication", "Not Applicable");
+    private final JComboBox<String> activityTimingCombo = createTagDropdown(
+            "Before Activity", "After Activity", "Resting");
 
     private final JTextField startDateFilterField = new JTextField(10);
     private final JTextField endDateFilterField = new JTextField(10);
@@ -228,24 +231,53 @@ public class ModernDesktopAppFrame extends JFrame {
         JPanel container = createCardContainer();
         container.setLayout(new BorderLayout(12, 12));
 
-        JPanel formCard = createPanelCard("Add Health Record");
-        formCard.setLayout(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(5, 5, 5, 5);
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.weightx = 1.0;
+        container.add(createStaticCard(
+                "Record Entry Guidance",
+                "Provide any measurements available for this session. Numeric fields are optional and "
+                        + "validated against realistic ranges. Use context dropdowns when timing information is known."),
+                BorderLayout.NORTH);
 
-        int row = 0;
-        addFormRow(formCard, gbc, row++, "Systolic", systolicField);
-        addFormRow(formCard, gbc, row++, "Diastolic", diastolicField);
-        addFormRow(formCard, gbc, row++, "Heart Rate", heartRateField);
-        addFormRow(formCard, gbc, row++, "Total Cholesterol", totalCholesterolField);
-        addFormRow(formCard, gbc, row++, "LDL", ldlField);
-        addFormRow(formCard, gbc, row++, "HDL", hdlField);
-        addFormRow(formCard, gbc, row++, "Triglycerides", triglyceridesField);
-        addFormRow(formCard, gbc, row++, "Time of Day", timeOfDayField);
-        addFormRow(formCard, gbc, row++, "Medication Timing", medTimingField);
-        addFormRow(formCard, gbc, row++, "Activity Timing", activityTimingField);
+        JPanel sections = new JPanel(new GridLayout(1, 2, 12, 12));
+        sections.setOpaque(false);
+
+        JPanel metricsCard = createPanelCard("Vitals and Lipids");
+        metricsCard.setLayout(new GridBagLayout());
+        GridBagConstraints metricGbc = new GridBagConstraints();
+        metricGbc.insets = new Insets(5, 5, 5, 5);
+        metricGbc.fill = GridBagConstraints.HORIZONTAL;
+        metricGbc.weightx = 1.0;
+
+        int metricRow = 0;
+        addFormRow(metricsCard, metricGbc, metricRow++, "Systolic (mmHg)", systolicField);
+        addFormRow(metricsCard, metricGbc, metricRow++, "Diastolic (mmHg)", diastolicField);
+        addFormRow(metricsCard, metricGbc, metricRow++, "Heart Rate (bpm)", heartRateField);
+        addFormRow(metricsCard, metricGbc, metricRow++, "Total Cholesterol (mg/dL)", totalCholesterolField);
+        addFormRow(metricsCard, metricGbc, metricRow++, "LDL (mg/dL)", ldlField);
+        addFormRow(metricsCard, metricGbc, metricRow++, "HDL (mg/dL)", hdlField);
+        addFormRow(metricsCard, metricGbc, metricRow++, "Triglycerides (mg/dL)", triglyceridesField);
+
+        JPanel contextCard = createPanelCard("Context Tags");
+        contextCard.setLayout(new GridBagLayout());
+        GridBagConstraints contextGbc = new GridBagConstraints();
+        contextGbc.insets = new Insets(5, 5, 5, 5);
+        contextGbc.fill = GridBagConstraints.HORIZONTAL;
+        contextGbc.weightx = 1.0;
+
+        int contextRow = 0;
+        addFormComboRow(contextCard, contextGbc, contextRow++, "Time of Day", timeOfDayCombo);
+        addFormComboRow(contextCard, contextGbc, contextRow++, "Medication Timing", medTimingCombo);
+        addFormComboRow(contextCard, contextGbc, contextRow++, "Activity Timing", activityTimingCombo);
+
+        JLabel contextHint = createMutedLabel("Tip: choose \"Not Specified\" when timing is unknown.");
+        contextHint.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        contextGbc.gridx = 0;
+        contextGbc.gridy = contextRow;
+        contextGbc.gridwidth = 2;
+        contextGbc.weightx = 1.0;
+        contextCard.add(contextHint, contextGbc);
+
+        sections.add(metricsCard);
+        sections.add(contextCard);
 
         JPanel actionRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         actionRow.setOpaque(false);
@@ -255,8 +287,9 @@ public class ModernDesktopAppFrame extends JFrame {
         clear.addActionListener(e -> clearAddRecordForm());
         actionRow.add(save);
         actionRow.add(clear);
+        actionRow.add(createMutedLabel("At least one metric is required to save."));
 
-        container.add(formCard, BorderLayout.CENTER);
+        container.add(sections, BorderLayout.CENTER);
         container.add(actionRow, BorderLayout.SOUTH);
         return container;
     }
@@ -515,6 +548,22 @@ public class ModernDesktopAppFrame extends JFrame {
         formPanel.add(field, gbc);
     }
 
+    private void addFormComboRow(JPanel formPanel, GridBagConstraints gbc, int row, String label, JComboBox<String> comboBox) {
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.weightx = 0.3;
+        gbc.gridwidth = 1;
+        JLabel rowLabel = new JLabel(label + ":");
+        rowLabel.setForeground(TEXT_MUTED);
+        rowLabel.setFont(FONT_BODY);
+        formPanel.add(rowLabel, gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 0.7;
+        styleComboBox(comboBox);
+        formPanel.add(comboBox, gbc);
+    }
+
     private void styleTextField(JTextField textField) {
         textField.setBackground(BG_PANEL_ALT);
         textField.setForeground(TEXT_PRIMARY);
@@ -522,6 +571,26 @@ public class ModernDesktopAppFrame extends JFrame {
         textField.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(70, 76, 92)),
                 BorderFactory.createEmptyBorder(6, 8, 6, 8)));
+    }
+
+    private void styleComboBox(JComboBox<String> comboBox) {
+        comboBox.setBackground(BG_PANEL_ALT);
+        comboBox.setForeground(TEXT_PRIMARY);
+        comboBox.setFont(FONT_BODY);
+        comboBox.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(70, 76, 92)),
+                BorderFactory.createEmptyBorder(2, 6, 2, 6)));
+    }
+
+    private JComboBox<String> createTagDropdown(String... options) {
+        JComboBox<String> comboBox = new JComboBox<>();
+        comboBox.addItem("Not Specified");
+        if (options != null) {
+            for (String option : options) {
+                comboBox.addItem(option);
+            }
+        }
+        return comboBox;
     }
 
     private void handleSaveRecord() {
@@ -534,9 +603,9 @@ public class ModernDesktopAppFrame extends JFrame {
             draft.setLdl(parseOptionalInteger("LDL", ldlField.getText()));
             draft.setHdl(parseOptionalInteger("HDL", hdlField.getText()));
             draft.setTriglycerides(parseOptionalInteger("Triglycerides", triglyceridesField.getText()));
-            draft.setTimeOfDay(nullIfBlank(timeOfDayField.getText()));
-            draft.setMedTiming(nullIfBlank(medTimingField.getText()));
-            draft.setActivityTiming(nullIfBlank(activityTimingField.getText()));
+            draft.setTimeOfDay(selectedDropdownValue(timeOfDayCombo));
+            draft.setMedTiming(selectedDropdownValue(medTimingCombo));
+            draft.setActivityTiming(selectedDropdownValue(activityTimingCombo));
 
             OperationResult<AddRecordResponse> result = recordManager.addRecord(draft);
             if (!result.isSuccess()) {
@@ -795,14 +864,18 @@ public class ModernDesktopAppFrame extends JFrame {
         ldlField.setText("");
         hdlField.setText("");
         triglyceridesField.setText("");
-        timeOfDayField.setText("");
-        medTimingField.setText("");
-        activityTimingField.setText("");
+        timeOfDayCombo.setSelectedIndex(0);
+        medTimingCombo.setSelectedIndex(0);
+        activityTimingCombo.setSelectedIndex(0);
     }
 
-    private String nullIfBlank(String value) {
-        String trimmed = value == null ? "" : value.trim();
-        return trimmed.isBlank() ? null : trimmed;
+    private String selectedDropdownValue(JComboBox<String> comboBox) {
+        Object selected = comboBox.getSelectedItem();
+        if (selected == null) {
+            return null;
+        }
+        String value = selected.toString().trim();
+        return "Not Specified".equals(value) || value.isBlank() ? null : value;
     }
 
     private String buildTagSummary(HealthRecord record) {
