@@ -49,6 +49,9 @@ public class ModernDesktopAppFrame extends JFrame {
     private static final Color BG_PANEL_ALT = new Color(33, 36, 45);
     private static final Color BG_SIDEBAR = new Color(21, 24, 31);
     private static final Color ACCENT = new Color(69, 142, 255);
+    private static final Color ACCENT_POSITIVE = new Color(120, 208, 143);
+    private static final Color ACCENT_WARNING = new Color(255, 166, 77);
+    private static final Color ACCENT_DANGER = new Color(255, 117, 117);
     private static final Color TEXT_PRIMARY = new Color(235, 238, 245);
     private static final Color TEXT_MUTED = new Color(163, 172, 190);
     private static final Font FONT_TITLE = new Font("SansSerif", Font.BOLD, 22);
@@ -63,6 +66,9 @@ public class ModernDesktopAppFrame extends JFrame {
     private final JLabel dashboardRecordCountLabel = new JLabel("Records loaded: 0");
     private final JLabel dashboardStorageLabel = new JLabel("Storage status: Ready");
     private final JLabel dashboardTrendLabel = new JLabel("Trend: N/A");
+    private final JLabel dashboardHighRiskLabel = new JLabel("0 high-risk sessions");
+    private final JLabel dashboardLatestCategoryLabel = new JLabel("No readings yet");
+    private final JLabel dashboardLatestVitalsLabel = new JLabel("Latest vitals: N/A");
 
     private final JTextField systolicField = new JTextField();
     private final JTextField diastolicField = new JTextField();
@@ -197,14 +203,24 @@ public class ModernDesktopAppFrame extends JFrame {
 
     private JPanel buildDashboardPanel() {
         JPanel container = createCardContainer();
-        container.setLayout(new GridLayout(2, 2, 12, 12));
+        container.setLayout(new BorderLayout(12, 12));
 
-        container.add(createInfoCard("Records Loaded", dashboardRecordCountLabel));
-        container.add(createInfoCard("Storage", dashboardStorageLabel));
-        container.add(createInfoCard("Trend Summary", dashboardTrendLabel));
+        container.add(createDashboardHeroCard(), BorderLayout.NORTH);
+
+        JPanel metricGrid = new JPanel(new GridLayout(2, 3, 12, 12));
+        metricGrid.setOpaque(false);
+        metricGrid.add(createDashboardMetricCard("Total Records", "Records currently stored locally", dashboardRecordCountLabel));
+        metricGrid.add(createDashboardMetricCard("Storage Health", "Startup and recovery state", dashboardStorageLabel));
+        metricGrid.add(createDashboardMetricCard("Trend Snapshot", "Recent systolic trend summary", dashboardTrendLabel));
+        metricGrid.add(createDashboardMetricCard("High-Risk Sessions", "Stage 2 or Crisis blood pressure", dashboardHighRiskLabel));
+        metricGrid.add(createDashboardMetricCard("Latest BP Category", "Most recent classification", dashboardLatestCategoryLabel));
+        metricGrid.add(createDashboardMetricCard("Latest Vitals", "Most recent blood pressure and heart rate", dashboardLatestVitalsLabel));
+
+        container.add(metricGrid, BorderLayout.CENTER);
         container.add(createStaticCard(
-                "Actions",
-                "Use the navigation on the left to add health records, review history, compute analytics, and export CSV."));
+                "Quick Actions",
+                "Add a record to keep your timeline current, review trends in Analytics, and export CSV snapshots for class reporting."),
+                BorderLayout.SOUTH);
         return container;
     }
 
@@ -415,6 +431,48 @@ public class ModernDesktopAppFrame extends JFrame {
         return card;
     }
 
+    private JPanel createDashboardHeroCard() {
+        JPanel card = createPanelCard("Health Overview");
+        card.setLayout(new BorderLayout(10, 10));
+
+        JPanel textBlock = new JPanel();
+        textBlock.setOpaque(false);
+        textBlock.setLayout(new BoxLayout(textBlock, BoxLayout.Y_AXIS));
+
+        JLabel heading = new JLabel("Your Offline Health Snapshot");
+        heading.setForeground(TEXT_PRIMARY);
+        heading.setFont(new Font("SansSerif", Font.BOLD, 19));
+        JLabel summary = new JLabel("<html><div style='width:760px'>Track blood pressure and lipid trends over time. "
+                + "All information remains local to this device and updates after every saved record.</div></html>");
+        summary.setForeground(TEXT_MUTED);
+        summary.setFont(FONT_BODY);
+
+        textBlock.add(heading);
+        textBlock.add(Box.createVerticalStrut(6));
+        textBlock.add(summary);
+
+        card.add(textBlock, BorderLayout.CENTER);
+        return card;
+    }
+
+    private JPanel createDashboardMetricCard(String title, String subtitle, JLabel valueLabel) {
+        JPanel card = createPanelCard(title);
+        card.setLayout(new BorderLayout(0, 8));
+
+        valueLabel.setForeground(TEXT_PRIMARY);
+        valueLabel.setFont(new Font("SansSerif", Font.BOLD, 17));
+        valueLabel.setBorder(BorderFactory.createEmptyBorder(8, 12, 0, 12));
+
+        JLabel subtitleLabel = new JLabel(subtitle);
+        subtitleLabel.setForeground(TEXT_MUTED);
+        subtitleLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        subtitleLabel.setBorder(BorderFactory.createEmptyBorder(0, 12, 10, 12));
+
+        card.add(valueLabel, BorderLayout.CENTER);
+        card.add(subtitleLabel, BorderLayout.SOUTH);
+        return card;
+    }
+
     private JPanel createStaticCard(String title, String text) {
         JPanel card = createPanelCard(title);
         card.setLayout(new BorderLayout());
@@ -559,7 +617,7 @@ public class ModernDesktopAppFrame extends JFrame {
         List<HealthRecord> records = recordManager.viewRecords();
         refreshHistoryTable(records);
         refreshAnalyticsView();
-        dashboardRecordCountLabel.setText(records.size() + " total record(s)");
+        refreshDashboardSummary(records);
     }
 
     private void refreshHistoryTable(List<HealthRecord> records) {
@@ -610,7 +668,8 @@ public class ModernDesktopAppFrame extends JFrame {
         builder.append("\nTrend\n  ").append(valueOrBlank(analytics.getTrendSummary()));
         analyticsTextArea.setText(builder.toString());
         analyticsTextArea.setCaretPosition(0);
-        dashboardTrendLabel.setText(valueOrBlank(analytics.getTrendSummary()));
+        dashboardTrendLabel.setText(valueOrFallback(analytics.getTrendSummary(), "No trend data yet"));
+        dashboardTrendLabel.setForeground(colorForTrend(analytics.getTrendSummary()));
     }
 
     private void showStartupMessages() {
@@ -633,6 +692,75 @@ public class ModernDesktopAppFrame extends JFrame {
             return "Initialized empty dataset";
         }
         return "Primary storage loaded";
+    }
+
+    private void refreshDashboardSummary(List<HealthRecord> records) {
+        dashboardRecordCountLabel.setText(records.size() + " record(s)");
+        dashboardStorageLabel.setForeground(TEXT_PRIMARY);
+        dashboardStorageLabel.setText(buildStorageStatusText());
+
+        int highRiskCount = countHighRiskRecords(records);
+        dashboardHighRiskLabel.setText(highRiskCount + (highRiskCount == 1 ? " high-risk session" : " high-risk sessions"));
+        dashboardHighRiskLabel.setForeground(highRiskCount == 0 ? ACCENT_POSITIVE : ACCENT_WARNING);
+
+        if (records.isEmpty()) {
+            dashboardLatestCategoryLabel.setText("No readings yet");
+            dashboardLatestCategoryLabel.setForeground(TEXT_MUTED);
+            dashboardLatestVitalsLabel.setText("Latest vitals: N/A");
+            dashboardLatestVitalsLabel.setForeground(TEXT_MUTED);
+            return;
+        }
+
+        HealthRecord latest = records.get(0);
+        String category = valueOrFallback(latest.getBloodPressureCategory(), "Not provided");
+        dashboardLatestCategoryLabel.setText(category);
+        dashboardLatestCategoryLabel.setForeground(colorForCategory(category));
+        dashboardLatestVitalsLabel.setText(buildLatestVitalsSummary(latest));
+        dashboardLatestVitalsLabel.setForeground(TEXT_PRIMARY);
+    }
+
+    private int countHighRiskRecords(List<HealthRecord> records) {
+        int count = 0;
+        for (HealthRecord record : records) {
+            String category = record.getBloodPressureCategory();
+            if ("Stage 2".equals(category) || "Crisis".equals(category)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private String buildLatestVitalsSummary(HealthRecord record) {
+        String bp = valueOrDash(record.getSystolic()) + "/" + valueOrDash(record.getDiastolic()) + " mmHg";
+        String heartRate = "HR " + valueOrDash(record.getHeartRate()) + " bpm";
+        return bp + "  |  " + heartRate;
+    }
+
+    private Color colorForCategory(String category) {
+        if ("Crisis".equals(category)) {
+            return ACCENT_DANGER;
+        }
+        if ("Stage 2".equals(category) || "Stage 1".equals(category) || "Elevated".equals(category)) {
+            return ACCENT_WARNING;
+        }
+        if ("Normal".equals(category)) {
+            return ACCENT_POSITIVE;
+        }
+        return TEXT_PRIMARY;
+    }
+
+    private Color colorForTrend(String trendSummary) {
+        if (trendSummary == null) {
+            return TEXT_PRIMARY;
+        }
+        String lower = trendSummary.toLowerCase();
+        if (lower.contains("improving")) {
+            return ACCENT_POSITIVE;
+        }
+        if (lower.contains("rising")) {
+            return ACCENT_WARNING;
+        }
+        return TEXT_PRIMARY;
     }
 
     private LocalDate parseDateField(String fieldName, String value) {
@@ -689,6 +817,17 @@ public class ModernDesktopAppFrame extends JFrame {
 
     private String valueOrBlank(Object value) {
         return value == null ? "" : String.valueOf(value);
+    }
+
+    private String valueOrDash(Object value) {
+        return value == null ? "-" : String.valueOf(value);
+    }
+
+    private String valueOrFallback(String value, String fallback) {
+        if (value == null || value.trim().isEmpty()) {
+            return fallback;
+        }
+        return value;
     }
 
     private void showError(String message) {
