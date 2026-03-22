@@ -24,6 +24,7 @@ import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import javax.swing.border.Border;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
@@ -48,6 +49,7 @@ import java.util.Set;
  * Modern themed Swing desktop UI variant for Bloodhound.
  */
 public class ModernDesktopAppFrame extends JFrame {
+    private static final int HISTORY_BP_CATEGORY_COLUMN = 2;
     private static final Color BG_APP = new Color(16, 18, 23);
     private static final Color BG_PANEL = new Color(28, 31, 39);
     private static final Color BG_PANEL_ALT = new Color(33, 36, 45);
@@ -340,6 +342,8 @@ public class ModernDesktopAppFrame extends JFrame {
         historyTable.getTableHeader().setBackground(new Color(47, 54, 66));
         historyTable.getTableHeader().setForeground(TEXT_PRIMARY);
         historyTable.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 12));
+        historyTable.getColumnModel().getColumn(HISTORY_BP_CATEGORY_COLUMN)
+                .setCellRenderer(new BloodPressureCategoryCellRenderer());
 
         JScrollPane tableScroll = new JScrollPane(historyTable);
         tableScroll.getViewport().setBackground(BG_PANEL_ALT);
@@ -930,7 +934,8 @@ public class ModernDesktopAppFrame extends JFrame {
 
         if (records.isEmpty()) {
             dashboardLatestCategoryLabel.setText("No readings yet");
-            dashboardLatestCategoryLabel.setForeground(TEXT_MUTED);
+            applyCategoryBadgeStyle(dashboardLatestCategoryLabel, "Not Provided");
+            dashboardLatestCategoryLabel.setText("No readings yet");
             dashboardLatestVitalsLabel.setText("Latest vitals: N/A");
             dashboardLatestVitalsLabel.setForeground(TEXT_MUTED);
             return;
@@ -939,7 +944,7 @@ public class ModernDesktopAppFrame extends JFrame {
         HealthRecord latest = records.get(0);
         String category = valueOrFallback(latest.getBloodPressureCategory(), "Not provided");
         dashboardLatestCategoryLabel.setText(category);
-        dashboardLatestCategoryLabel.setForeground(colorForCategory(category));
+        applyCategoryBadgeStyle(dashboardLatestCategoryLabel, category);
         dashboardLatestVitalsLabel.setText(buildLatestVitalsSummary(latest));
         dashboardLatestVitalsLabel.setForeground(TEXT_PRIMARY);
     }
@@ -961,17 +966,56 @@ public class ModernDesktopAppFrame extends JFrame {
         return bp + "  |  " + heartRate;
     }
 
-    private Color colorForCategory(String category) {
-        if ("Crisis".equals(category)) {
-            return ACCENT_DANGER;
+    private void applyCategoryBadgeStyle(JLabel label, String category) {
+        CategoryVisual visual = categoryVisual(category);
+        label.setForeground(visual.textColor);
+        label.setBackground(visual.badgeBackgroundColor);
+        label.setOpaque(true);
+        label.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(visual.borderColor),
+                BorderFactory.createEmptyBorder(4, 8, 4, 8)));
+    }
+
+    private CategoryVisual categoryVisual(String rawCategory) {
+        String category = rawCategory == null ? "" : rawCategory.trim();
+        switch (category) {
+            case "Normal":
+                return new CategoryVisual(
+                        new Color(132, 220, 161),
+                        new Color(36, 59, 46),
+                        new Color(71, 126, 96),
+                        new Color(44, 65, 54));
+            case "Elevated":
+                return new CategoryVisual(
+                        new Color(255, 214, 130),
+                        new Color(63, 52, 32),
+                        new Color(126, 101, 51),
+                        new Color(68, 56, 36));
+            case "Stage 1":
+                return new CategoryVisual(
+                        new Color(255, 184, 117),
+                        new Color(74, 49, 35),
+                        new Color(137, 85, 50),
+                        new Color(79, 54, 41));
+            case "Stage 2":
+                return new CategoryVisual(
+                        new Color(255, 153, 153),
+                        new Color(78, 41, 44),
+                        new Color(151, 74, 84),
+                        new Color(83, 45, 49));
+            case "Crisis":
+                return new CategoryVisual(
+                        new Color(255, 116, 116),
+                        new Color(83, 32, 37),
+                        new Color(174, 67, 78),
+                        new Color(88, 38, 43));
+            default:
+                return new CategoryVisual(
+                        TEXT_PRIMARY,
+                        new Color(47, 52, 62),
+                        new Color(78, 86, 101),
+                        BG_PANEL_ALT);
         }
-        if ("Stage 2".equals(category) || "Stage 1".equals(category) || "Elevated".equals(category)) {
-            return ACCENT_WARNING;
-        }
-        if ("Normal".equals(category)) {
-            return ACCENT_POSITIVE;
-        }
-        return TEXT_PRIMARY;
     }
 
     private Color colorForTrend(String trendSummary) {
@@ -1164,5 +1208,45 @@ public class ModernDesktopAppFrame extends JFrame {
 
     private void setStatus(String message) {
         statusLabel.setText(message);
+    }
+
+    private static final class CategoryVisual {
+        private final Color textColor;
+        private final Color badgeBackgroundColor;
+        private final Color borderColor;
+        private final Color tableCellBackgroundColor;
+
+        private CategoryVisual(Color textColor, Color badgeBackgroundColor, Color borderColor, Color tableCellBackgroundColor) {
+            this.textColor = textColor;
+            this.badgeBackgroundColor = badgeBackgroundColor;
+            this.borderColor = borderColor;
+            this.tableCellBackgroundColor = tableCellBackgroundColor;
+        }
+    }
+
+    private final class BloodPressureCategoryCellRenderer extends DefaultTableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus,
+                                                       int row, int column) {
+            JLabel component = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+            String category = valueOrFallback(value == null ? null : value.toString(), "Unclassified");
+            CategoryVisual visual = categoryVisual(category);
+
+            component.setText(category);
+            component.setHorizontalAlignment(JLabel.CENTER);
+            component.setOpaque(true);
+            if (isSelected) {
+                component.setForeground(table.getSelectionForeground());
+                component.setBackground(table.getSelectionBackground());
+                component.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
+            } else {
+                component.setForeground(visual.textColor);
+                component.setBackground(visual.tableCellBackgroundColor);
+                component.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(visual.borderColor),
+                        BorderFactory.createEmptyBorder(2, 6, 2, 6)));
+            }
+            return component;
+        }
     }
 }
