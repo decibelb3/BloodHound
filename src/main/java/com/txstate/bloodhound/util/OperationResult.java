@@ -21,26 +21,62 @@ public class OperationResult<T> {
         this.data = data;
     }
 
+    /**
+     * Creates a successful result wrapper.
+     *
+     * @param message user-facing success message
+     * @param data operation payload
+     * @param <T> payload type
+     * @return success result
+     */
     public static <T> OperationResult<T> success(String message, T data) {
         return new OperationResult<>(true, message, List.of(), data);
     }
 
+    /**
+     * Creates a failed result wrapper.
+     *
+     * @param message user-facing failure message
+     * @param errors detailed error messages
+     * @param <T> payload type
+     * @return failure result
+     */
     public static <T> OperationResult<T> failure(String message, List<String> errors) {
         return new OperationResult<>(false, message, errors, null);
     }
 
+    /**
+     * Indicates whether the operation succeeded.
+     *
+     * @return {@code true} when successful
+     */
     public boolean isSuccess() {
         return success;
     }
 
+    /**
+     * Returns the user-facing message.
+     *
+     * @return success or failure message
+     */
     public String getMessage() {
         return message;
     }
 
+    /**
+     * Returns an immutable list of error details.
+     *
+     * @return detailed error list (empty for successful operations)
+     */
     public List<String> getErrors() {
         return Collections.unmodifiableList(errors);
     }
 
+    /**
+     * Returns operation payload.
+     *
+     * @return payload for successful operations, otherwise {@code null}
+     */
     public T getData() {
         return data;
     }

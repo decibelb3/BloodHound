@@ -14,6 +14,12 @@ public final class JsonUtil {
     private JsonUtil() {
     }
 
+    /**
+     * Serializes records as a JSON array string.
+     *
+     * @param records records to serialize
+     * @return JSON array text
+     */
     public static String toJson(List<HealthRecord> records) {
         StringBuilder builder = new StringBuilder();
         builder.append("[");
@@ -30,6 +36,13 @@ public final class JsonUtil {
         return builder.toString();
     }
 
+    /**
+     * Parses a JSON array string into records.
+     *
+     * @param json JSON array text
+     * @return parsed records (possibly empty)
+     * @throws IllegalArgumentException when JSON structure or numeric tokens are invalid
+     */
     public static List<HealthRecord> fromJson(String json) {
         if (json == null || json.isBlank()) {
             return new ArrayList<>();

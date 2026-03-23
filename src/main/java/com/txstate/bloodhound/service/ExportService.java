@@ -14,6 +14,14 @@ import java.util.List;
  */
 public class ExportService {
 
+    /**
+     * Writes records to a CSV file at the requested destination.
+     *
+     * @param records records to export (header is still written when empty)
+     * @param destinationFile destination CSV path
+     * @return the destination path that was written
+     * @throws IOException if parent directories cannot be created or the file cannot be written
+     */
     public Path exportToCsv(List<HealthRecord> records, Path destinationFile) throws IOException {
         Path parent = destinationFile.getParent();
         if (parent != null) {
