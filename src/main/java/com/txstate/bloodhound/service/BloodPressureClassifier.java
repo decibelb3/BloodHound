@@ -5,6 +5,14 @@ package com.txstate.bloodhound.service;
  */
 public class BloodPressureClassifier {
 
+    /**
+     * Classifies blood pressure based on systolic and diastolic inputs.
+     *
+     * @param systolic systolic value in mmHg, or {@code null}
+     * @param diastolic diastolic value in mmHg, or {@code null}
+     * @return category label such as {@code Normal}, {@code Elevated}, {@code Stage 1},
+     * {@code Stage 2}, {@code Crisis}, {@code Not Provided}, or {@code Unclassified}
+     */
     public String classifyBloodPressure(Integer systolic, Integer diastolic) {
         if (systolic == null && diastolic == null) {
             return "Not Provided";
@@ -27,6 +35,12 @@ public class BloodPressureClassifier {
         return "Unclassified";
     }
 
+    /**
+     * Indicates whether a category should be treated as high risk.
+     *
+     * @param category blood pressure category label
+     * @return {@code true} for high-risk categories
+     */
     public boolean isHighRisk(String category) {
         return "Stage 2".equals(category) || "Crisis".equals(category);
     }

@@ -16,6 +16,12 @@ import java.util.stream.Collectors;
  */
 public class AnalyticsEngine {
 
+    /**
+     * Computes aggregate analytics for the provided records.
+     *
+     * @param records source records
+     * @return analytics result containing averages, counts, alerts, and trend summary
+     */
     public AnalyticsResult computeAnalytics(List<HealthRecord> records) {
         AnalyticsResult result = new AnalyticsResult();
         if (records == null || records.isEmpty()) {

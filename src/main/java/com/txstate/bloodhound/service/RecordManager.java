@@ -32,6 +32,9 @@ public class RecordManager {
     private final ExportService exportService;
     private final List<HealthRecord> records = new ArrayList<>();
 
+    /**
+     * Creates a record manager with default concrete dependencies.
+     */
     public RecordManager() {
         this(new FileStorageService(),
                 new ValidationService(),
@@ -41,6 +44,16 @@ public class RecordManager {
                 new ExportService());
     }
 
+    /**
+     * Creates a record manager with explicit collaborators.
+     *
+     * @param storageService storage service for primary and backup files
+     * @param validationService validator for incoming records
+     * @param bloodPressureClassifier classifier for blood pressure categories
+     * @param lipidClassifier classifier for lipid categories and alerts
+     * @param analyticsEngine analytics engine for aggregate computations
+     * @param exportService CSV export service
+     */
     public RecordManager(FileStorageService storageService,
                          ValidationService validationService,
                          BloodPressureClassifier bloodPressureClassifier,
@@ -57,6 +70,8 @@ public class RecordManager {
 
     /**
      * Initializes storage and loads records into memory.
+     *
+     * @return startup initialization result including warnings/recovery information
      */
     public StorageInitializationResult initializeStorage() {
         StorageInitializationResult init = storageService.initializeStorage();
@@ -67,6 +82,9 @@ public class RecordManager {
 
     /**
      * Adds a health record after validation and classification, then persists it.
+     *
+     * @param inputRecord incoming record draft
+     * @return operation result containing persisted record and generated alerts
      */
     public OperationResult<AddRecordResponse> addRecord(HealthRecord inputRecord) {
         ValidationResult validationResult = validationService.validateRecord(inputRecord);
@@ -120,6 +138,8 @@ public class RecordManager {
 
     /**
      * Returns all records sorted by timestamp descending.
+     *
+     * @return sorted copy of records
      */
     public List<HealthRecord> viewRecords() {
         return records.stream()
@@ -129,6 +149,10 @@ public class RecordManager {
 
     /**
      * Returns records within a date range (inclusive) sorted descending by timestamp.
+     *
+     * @param startDate start date (inclusive)
+     * @param endDate end date (inclusive)
+     * @return operation result containing filtered records or validation errors
      */
     public OperationResult<List<HealthRecord>> filterRecordsByDateRange(LocalDate startDate, LocalDate endDate) {
         if (startDate == null || endDate == null) {
@@ -152,6 +176,8 @@ public class RecordManager {
 
     /**
      * Computes analytics from current in-memory records.
+     *
+     * @return aggregate analytics snapshot
      */
     public AnalyticsResult viewAnalytics() {
         return analyticsEngine.computeAnalytics(records);
@@ -159,6 +185,9 @@ public class RecordManager {
 
     /**
      * Exports current records to CSV.
+     *
+     * @param destination destination CSV path
+     * @return operation result containing exported path or failure details
      */
     public OperationResult<Path> exportAllRecordsToCsv(Path destination) {
         try {
@@ -169,6 +198,11 @@ public class RecordManager {
         }
     }
 
+    /**
+     * Returns a snapshot copy of in-memory records.
+     *
+     * @return copy of current in-memory record list
+     */
     public List<HealthRecord> getRecordsSnapshot() {
         return new ArrayList<>(records);
     }

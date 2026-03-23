@@ -24,6 +24,9 @@ public class ValidationService {
 
     /**
      * Validates a record and returns all detected issues.
+     *
+     * @param record record to validate
+     * @return validation result containing zero or more errors
      */
     public ValidationResult validateRecord(HealthRecord record) {
         ValidationResult result = new ValidationResult();

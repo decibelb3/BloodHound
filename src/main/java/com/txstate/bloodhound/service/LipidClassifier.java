@@ -11,6 +11,12 @@ import java.util.List;
  */
 public class LipidClassifier {
 
+    /**
+     * Classifies lipid metrics and derives a consolidated alert summary.
+     *
+     * @param record record containing lipid values
+     * @return populated lipid classification details
+     */
     public LipidClassification classify(HealthRecord record) {
         LipidClassification classification = new LipidClassification();
         List<String> alerts = new ArrayList<>();
@@ -39,6 +45,12 @@ public class LipidClassifier {
         return classification;
     }
 
+    /**
+     * Classifies total cholesterol.
+     *
+     * @param value total cholesterol in mg/dL, or {@code null}
+     * @return category label
+     */
     public String classifyTotalCholesterol(Integer value) {
         if (value == null) {
             return "Not Provided";
@@ -52,6 +64,12 @@ public class LipidClassifier {
         return "High";
     }
 
+    /**
+     * Classifies LDL.
+     *
+     * @param value LDL in mg/dL, or {@code null}
+     * @return category label
+     */
     public String classifyLdl(Integer value) {
         if (value == null) {
             return "Not Provided";
@@ -71,6 +89,12 @@ public class LipidClassifier {
         return "Very High";
     }
 
+    /**
+     * Classifies HDL.
+     *
+     * @param value HDL in mg/dL, or {@code null}
+     * @return category label
+     */
     public String classifyHdl(Integer value) {
         if (value == null) {
             return "Not Provided";
@@ -84,6 +108,12 @@ public class LipidClassifier {
         return "Protective";
     }
 
+    /**
+     * Classifies triglycerides.
+     *
+     * @param value triglycerides in mg/dL, or {@code null}
+     * @return category label
+     */
     public String classifyTriglycerides(Integer value) {
         if (value == null) {
             return "Not Provided";
