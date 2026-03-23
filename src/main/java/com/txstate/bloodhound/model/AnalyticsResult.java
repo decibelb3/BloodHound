@@ -31,6 +31,12 @@ public class AnalyticsResult {
     private String trendSummary;
 
     /**
+     * Creates an empty analytics container.
+     */
+    public AnalyticsResult() {
+    }
+
+    /**
      * Returns average systolic value.
      *
      * @return average systolic, or {@code null} if unavailable

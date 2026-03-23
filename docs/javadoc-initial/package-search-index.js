@@ -1,0 +1,1 @@
+packageSearchIndex = [{"l":"All Packages","u":"allpackages-index.html"},{"l":"com.txstate.bloodhound"},{"l":"com.txstate.bloodhound.model"},{"l":"com.txstate.bloodhound.service"},{"l":"com.txstate.bloodhound.storage"},{"l":"com.txstate.bloodhound.ui"},{"l":"com.txstate.bloodhound.util"}];updateSearchResults();

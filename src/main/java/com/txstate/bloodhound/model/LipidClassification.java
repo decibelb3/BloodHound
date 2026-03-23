@@ -22,6 +22,12 @@ public class LipidClassification {
     private List<String> alerts = new ArrayList<>();
 
     /**
+     * Creates an empty lipid classification container.
+     */
+    public LipidClassification() {
+    }
+
+    /**
      * Returns total cholesterol category.
      *
      * @return total cholesterol category label, or {@code null}
