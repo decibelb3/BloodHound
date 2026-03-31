@@ -1,7 +1,9 @@
 package com.txstate.bloodhound.ui;
 
+import com.txstate.bloodhound.model.RegistrationRequest;
 import com.txstate.bloodhound.model.User;
 import com.txstate.bloodhound.service.AuthService;
+import com.txstate.bloodhound.util.OperationResult;
 
 /**
  * Placeholder controller for user registration interactions.
@@ -18,14 +20,15 @@ public class RegisterViewController {
     /**
      * Registers a user account from registration form fields.
      *
-     * @param username username
-     * @param email email
-     * @param plainTextPassword password
-     * @return created user
+     * @param request registration payload
+     * @return operation result containing created user on success
      */
-    public User register(String username, String email, String plainTextPassword) {
-        // TODO: Validate registration fields and invoke AuthService.
-        throw new UnsupportedOperationException("Not implemented yet.");
+    public OperationResult<User> register(RegistrationRequest request) {
+        OperationResult<User> result = authService.register(request);
+        if (result.isSuccess()) {
+            appState.setCurrentUser(result.getData());
+        }
+        return result;
     }
 
     public AuthService getAuthService() {

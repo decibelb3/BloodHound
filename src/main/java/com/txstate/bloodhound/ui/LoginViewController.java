@@ -1,6 +1,9 @@
 package com.txstate.bloodhound.ui;
 
+import com.txstate.bloodhound.model.LoginRequest;
+import com.txstate.bloodhound.model.User;
 import com.txstate.bloodhound.service.AuthService;
+import com.txstate.bloodhound.util.OperationResult;
 
 /**
  * Placeholder JavaFX controller for login interactions.
@@ -17,11 +20,16 @@ public class LoginViewController {
     /**
      * Handles a login action from UI controls.
      *
-     * @param username username entered by user
+     * @param usernameOrEmail username or email entered by user
      * @param rawPassword raw password entered by user
+     * @return operation result containing the authenticated user on success
      */
-    public void onLogin(String username, String rawPassword) {
-        // TODO: Wire login controls to AuthService and update AppState.
+    public OperationResult<User> onLogin(String usernameOrEmail, String rawPassword) {
+        OperationResult<User> result = authService.login(new LoginRequest(usernameOrEmail, rawPassword));
+        if (result.isSuccess() && result.getData() != null) {
+            appState.setCurrentUser(result.getData());
+        }
+        return result;
     }
 
     public AuthService getAuthService() {

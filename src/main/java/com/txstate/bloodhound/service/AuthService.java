@@ -1,9 +1,15 @@
 package com.txstate.bloodhound.service;
 
 import com.txstate.bloodhound.dao.UserDao;
+import com.txstate.bloodhound.model.LoginRequest;
+import com.txstate.bloodhound.model.RegistrationRequest;
 import com.txstate.bloodhound.model.User;
+import com.txstate.bloodhound.util.OperationResult;
+import com.txstate.bloodhound.util.PasswordUtil;
 
-import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -17,30 +23,68 @@ public class AuthService {
     }
 
     /**
-     * Registers a new account.
+     * Registers a new account using validated request data.
      *
-     * @param username unique username
-     * @param email unique email
-     * @param plainPassword raw password input
-     * @return created user
-     * @throws SQLException when persistence fails
+     * @param request registration request
+     * @return success or failure result with created user payload
      */
-    public User register(String username, String email, String plainPassword) throws SQLException {
-        // TODO: Validate inputs, hash password, enforce uniqueness, persist user.
-        throw new UnsupportedOperationException("Not implemented yet.");
+    public OperationResult<User> register(RegistrationRequest request) {
+        List<String> errors = validateRegistrationRequest(request);
+        if (!errors.isEmpty()) {
+            return OperationResult.failure("Registration failed.", errors);
+        }
+
+        String normalizedUsername = normalize(request.getUsername());
+        String normalizedEmail = normalize(request.getEmail());
+
+        if (userDao.existsByUsername(normalizedUsername)) {
+            errors.add("Username is already taken.");
+        }
+        if (userDao.existsByEmail(normalizedEmail)) {
+            errors.add("Email is already registered.");
+        }
+        if (!errors.isEmpty()) {
+            return OperationResult.failure("Registration failed.", errors);
+        }
+
+        User user = new User();
+        user.setUsername(normalizedUsername);
+        user.setEmail(normalizedEmail);
+        user.setPasswordHash(PasswordUtil.hashPassword(request.getPassword()));
+        user.setCreatedAt(LocalDateTime.now());
+
+        User createdUser = userDao.createUser(user);
+        return OperationResult.success("Registration successful.", createdUser);
     }
 
     /**
-     * Authenticates a user by username and password.
+     * Authenticates a user using username/email and password.
      *
-     * @param username username
-     * @param plainPassword raw password input
-     * @return optional authenticated user
-     * @throws SQLException when lookup fails
+     * @param request login request
+     * @return success or failure result with authenticated user payload
      */
-    public Optional<User> login(String username, String plainPassword) throws SQLException {
-        // TODO: Fetch user and verify password hash.
-        throw new UnsupportedOperationException("Not implemented yet.");
+    public OperationResult<User> login(LoginRequest request) {
+        List<String> errors = validateLoginRequest(request);
+        if (!errors.isEmpty()) {
+            return OperationResult.failure("Login failed.", errors);
+        }
+
+        String usernameOrEmail = normalize(request.getUsernameOrEmail());
+        Optional<User> userOptional = usernameOrEmail.contains("@")
+                ? userDao.findByEmail(usernameOrEmail)
+                : userDao.findByUsername(usernameOrEmail);
+
+        if (userOptional.isEmpty()) {
+            return OperationResult.failure("Login failed.", List.of("Invalid credentials."));
+        }
+
+        User user = userOptional.get();
+        boolean validPassword = PasswordUtil.verifyPassword(request.getPassword(), user.getPasswordHash());
+        if (!validPassword) {
+            return OperationResult.failure("Login failed.", List.of("Invalid credentials."));
+        }
+
+        return OperationResult.success("Login successful.", user);
     }
 
     /**
@@ -48,14 +92,55 @@ public class AuthService {
      *
      * @param userId unique user id
      * @return optional user
-     * @throws SQLException when query fails
      */
-    public Optional<User> getUserProfile(Long userId) throws SQLException {
-        // TODO: Delegate to user DAO.
-        throw new UnsupportedOperationException("Not implemented yet.");
+    public Optional<User> getUserProfile(Long userId) {
+        return userDao.findById(userId);
     }
 
     public UserDao getUserDao() {
         return userDao;
+    }
+
+    private List<String> validateRegistrationRequest(RegistrationRequest request) {
+        List<String> errors = new ArrayList<>();
+        if (request == null) {
+            errors.add("Registration request is required.");
+            return errors;
+        }
+
+        if (isBlank(request.getUsername())) {
+            errors.add("Username is required.");
+        }
+        if (isBlank(request.getEmail())) {
+            errors.add("Email is required.");
+        }
+        if (isBlank(request.getPassword())) {
+            errors.add("Password is required.");
+        }
+        return errors;
+    }
+
+    private List<String> validateLoginRequest(LoginRequest request) {
+        List<String> errors = new ArrayList<>();
+        if (request == null) {
+            errors.add("Login request is required.");
+            return errors;
+        }
+
+        if (isBlank(request.getUsernameOrEmail())) {
+            errors.add("Username or email is required.");
+        }
+        if (isBlank(request.getPassword())) {
+            errors.add("Password is required.");
+        }
+        return errors;
+    }
+
+    private String normalize(String value) {
+        return value == null ? null : value.trim();
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 }
