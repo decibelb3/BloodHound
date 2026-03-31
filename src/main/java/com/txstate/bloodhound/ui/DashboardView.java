@@ -12,6 +12,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -24,6 +25,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -36,6 +38,7 @@ import java.util.function.Consumer;
  */
 public class DashboardView {
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private static final DateTimeFormatter TIME_ONLY_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
 
     private final DashboardViewController controller;
     private final User user;
@@ -64,6 +67,8 @@ public class DashboardView {
 
     private final DatePicker startDatePicker = new DatePicker();
     private final DatePicker endDatePicker = new DatePicker();
+    private final TextField startTimeField = new TextField("00:00");
+    private final TextField endTimeField = new TextField("23:59");
 
     private final Button refreshButton = new Button("Refresh");
     private final Button addMeasurementButton = new Button("Add Measurement");
@@ -105,7 +110,8 @@ public class DashboardView {
      * Refreshes dashboard summary cards and selected content panels.
      */
     public void refresh() {
-        refreshSummaryCards();
+        applyStoredDateRangeToInputs();
+        refreshSummaryCards(getCurrentRangeStart(), getCurrentRangeEnd());
         loadHistorySummary();
         loadChartSummary();
     }
@@ -191,7 +197,9 @@ public class DashboardView {
 
         HBox dateFilterRow = new HBox(8,
                 new Label("Start Date:"), startDatePicker,
-                new Label("End Date:"), endDatePicker);
+                new Label("Start Time (HH:mm):"), startTimeField,
+                new Label("End Date:"), endDatePicker,
+                new Label("End Time (HH:mm):"), endTimeField);
         dateFilterRow.setAlignment(Pos.CENTER_LEFT);
 
         VBox sectionContent = new VBox(8, actionRow, dateFilterRow);
@@ -257,13 +265,15 @@ public class DashboardView {
         addMeasurementButton.setOnAction(event -> onOpenAddMeasurement.accept(this::refresh));
 
         viewHistoryButton.setOnAction(event -> onOpenHistory.accept(this::refresh));
-        filterByDateButton.setOnAction(event -> loadHistoryByDateRange());
+        filterByDateButton.setOnAction(event -> applyDateRangeFilterAcrossDashboard());
         viewChartsButton.setOnAction(event -> onOpenCharts.accept(this::refresh));
     }
 
-    private void refreshSummaryCards() {
+    private void refreshSummaryCards(LocalDateTime startInclusive, LocalDateTime endInclusive) {
         try {
-            OperationResult<DashboardSummary> result = controller.loadDashboardSummary();
+            OperationResult<DashboardSummary> result = (startInclusive != null && endInclusive != null)
+                    ? controller.loadDashboardSummary(startInclusive, endInclusive)
+                    : controller.loadDashboardSummary();
             if (!result.isSuccess() || result.getData() == null) {
                 setFeedback(formatOperationError(result));
                 return;
@@ -289,7 +299,20 @@ public class DashboardView {
 
     private void loadHistorySummary() {
         try {
-            List<HealthMeasurement> history = controller.loadCurrentUserMeasurements();
+            List<HealthMeasurement> history;
+            LocalDateTime startInclusive = getCurrentRangeStart();
+            LocalDateTime endInclusive = getCurrentRangeEnd();
+            if (startInclusive != null && endInclusive != null) {
+                OperationResult<List<HealthMeasurement>> result =
+                        controller.loadCurrentUserMeasurements(startInclusive, endInclusive);
+                if (!result.isSuccess()) {
+                    setFeedback(formatOperationError(result));
+                    return;
+                }
+                history = result.getData();
+            } else {
+                history = controller.loadCurrentUserMeasurements();
+            }
             if (history.isEmpty()) {
                 historySummaryLabel.setText("No measurements found for current user.");
             } else {
@@ -304,35 +327,33 @@ public class DashboardView {
         }
     }
 
-    private void loadHistoryByDateRange() {
-        LocalDate startDate = startDatePicker.getValue();
-        LocalDate endDate = endDatePicker.getValue();
-        if (startDate == null || endDate == null) {
-            setFeedback("Select both start and end dates to filter history.");
+    private void applyDateRangeFilterAcrossDashboard() {
+        LocalDateTime start;
+        LocalDateTime end;
+        try {
+            start = resolveDateTime(startDatePicker.getValue(), startTimeField.getText(), "start");
+            end = resolveDateTime(endDatePicker.getValue(), endTimeField.getText(), "end");
+        } catch (IllegalArgumentException exception) {
+            setFeedback(exception.getMessage());
             return;
         }
+        if (end.isBefore(start)) {
+            setFeedback("End date/time cannot be before start date/time.");
+            return;
+        }
+        controller.getAppState().setDateTimeFilter(start, end);
 
-        LocalDateTime start = startDate.atStartOfDay();
-        LocalDateTime end = endDate.atTime(LocalTime.MAX);
-        OperationResult<List<HealthMeasurement>> result = controller.loadCurrentUserMeasurements(start, end);
-        if (!result.isSuccess()) {
-            setFeedback(formatOperationError(result));
-            return;
-        }
-        List<HealthMeasurement> data = result.getData();
-        historySummaryLabel.setText("Date range result: " + data.size() + " measurement(s).");
-        if (data.isEmpty()) {
-            setFeedback("No measurements found in selected date range.");
-        } else {
-            clearFeedback();
+        refreshSummaryCards(start, end);
+        loadHistorySummary();
+        loadChartSummary();
+        if (feedbackLabel.getText() == null || feedbackLabel.getText().isBlank()) {
+            setFeedback("Applied date range filter.");
         }
     }
 
     private void loadChartSummary() {
-        LocalDate startDate = startDatePicker.getValue();
-        LocalDate endDate = endDatePicker.getValue();
-        LocalDateTime start = startDate == null ? null : startDate.atStartOfDay();
-        LocalDateTime end = endDate == null ? null : endDate.atTime(LocalTime.MAX);
+        LocalDateTime start = getCurrentRangeStart();
+        LocalDateTime end = getCurrentRangeEnd();
 
         try {
             List<MetricPoint> systolic = controller.loadTrendPoints("systolic", start, end);
@@ -383,6 +404,44 @@ public class DashboardView {
 
     private String formatDateTime(LocalDateTime value) {
         return value == null ? "N/A" : DATE_TIME_FORMATTER.format(value);
+    }
+
+    private void applyStoredDateRangeToInputs() {
+        LocalDateTime start = controller.getAppState().getFilterStartDateTime();
+        LocalDateTime end = controller.getAppState().getFilterEndDateTime();
+        if (start != null && end != null) {
+            startDatePicker.setValue(start.toLocalDate());
+            endDatePicker.setValue(end.toLocalDate());
+            startTimeField.setText(start.toLocalTime().format(TIME_ONLY_FORMATTER));
+            endTimeField.setText(end.toLocalTime().format(TIME_ONLY_FORMATTER));
+            return;
+        }
+        startTimeField.setText("00:00");
+        endTimeField.setText("23:59");
+    }
+
+    private LocalDateTime getCurrentRangeStart() {
+        return controller.getAppState().getFilterStartDateTime();
+    }
+
+    private LocalDateTime getCurrentRangeEnd() {
+        return controller.getAppState().getFilterEndDateTime();
+    }
+
+    private LocalDateTime resolveDateTime(LocalDate date, String timeText, String label) {
+        if (date == null) {
+            throw new IllegalArgumentException("Select a " + label + " date.");
+        }
+        String rawTime = timeText == null ? "" : timeText.trim();
+        if (rawTime.isBlank()) {
+            throw new IllegalArgumentException("Select a " + label + " time (HH:mm).");
+        }
+        try {
+            LocalTime time = LocalTime.parse(rawTime, TIME_ONLY_FORMATTER);
+            return LocalDateTime.of(date, time);
+        } catch (DateTimeParseException exception) {
+            throw new IllegalArgumentException("Invalid " + label + " time. Use HH:mm.");
+        }
     }
 
     private void setFeedback(String text) {

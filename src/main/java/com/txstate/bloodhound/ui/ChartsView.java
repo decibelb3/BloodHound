@@ -11,6 +11,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -24,6 +25,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Objects;
 
@@ -35,6 +37,7 @@ import java.util.Objects;
  */
 public class ChartsView {
     private static final DateTimeFormatter DATE_TIME_TOOLTIP_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
 
     private final DashboardViewController controller;
     private final Runnable onBackToDashboard;
@@ -42,6 +45,8 @@ public class ChartsView {
     private final BorderPane root = new BorderPane();
     private final DatePicker startDatePicker = new DatePicker();
     private final DatePicker endDatePicker = new DatePicker();
+    private final TextField startTimeField = new TextField("00:00");
+    private final TextField endTimeField = new TextField("23:59");
     private final Label feedbackLabel = new Label();
     private final Label bpEmptyLabel = new Label();
     private final Label cholesterolEmptyLabel = new Label();
@@ -63,7 +68,7 @@ public class ChartsView {
         this.cholesterolChart = createChart("Cholesterol Trend", "Cholesterol");
         this.weightChart = createChart("Weight Trend", "Weight");
         build();
-        loadCharts(null, null);
+        loadCharts(getCurrentRangeStart(), getCurrentRangeEnd());
     }
 
     /**
@@ -95,7 +100,9 @@ public class ChartsView {
 
         HBox filterBar = new HBox(8,
                 new Label("Start Date:"), startDatePicker,
+                new Label("Start Time (HH:mm):"), startTimeField,
                 new Label("End Date:"), endDatePicker,
+                new Label("End Time (HH:mm):"), endTimeField,
                 applyFilterButton, clearFilterButton);
         filterBar.setAlignment(Pos.CENTER_LEFT);
         filterBar.setPadding(new Insets(10));
@@ -123,23 +130,34 @@ public class ChartsView {
 
     private void attachActions() {
         backButton.setOnAction(event -> onBackToDashboard.run());
-        refreshButton.setOnAction(event -> loadCharts(currentStart(), currentEnd()));
+        refreshButton.setOnAction(event -> loadCharts(getCurrentRangeStart(), getCurrentRangeEnd()));
         applyFilterButton.setOnAction(event -> applyDateFilter());
         clearFilterButton.setOnAction(event -> {
             startDatePicker.setValue(null);
             endDatePicker.setValue(null);
+            startTimeField.setText("00:00");
+            endTimeField.setText("23:59");
+            controller.getAppState().clearDateTimeFilter();
             loadCharts(null, null);
         });
     }
 
     private void applyDateFilter() {
-        LocalDate startDate = startDatePicker.getValue();
-        LocalDate endDate = endDatePicker.getValue();
-        if (startDate == null || endDate == null) {
-            setError("Select both start and end dates to filter charts.");
+        LocalDateTime startInclusive;
+        LocalDateTime endInclusive;
+        try {
+            startInclusive = resolveDateTime(startDatePicker.getValue(), startTimeField.getText(), "start");
+            endInclusive = resolveDateTime(endDatePicker.getValue(), endTimeField.getText(), "end");
+        } catch (IllegalArgumentException exception) {
+            setError(exception.getMessage());
             return;
         }
-        loadCharts(startDate.atStartOfDay(), endDate.atTime(LocalTime.MAX));
+        if (endInclusive.isBefore(startInclusive)) {
+            setError("End date/time cannot be before start date/time.");
+            return;
+        }
+        controller.getAppState().setDateTimeFilter(startInclusive, endInclusive);
+        loadCharts(startInclusive, endInclusive);
     }
 
     private void loadCharts(LocalDateTime startInclusive, LocalDateTime endInclusive) {
@@ -256,6 +274,43 @@ public class ChartsView {
     private LocalDateTime currentEnd() {
         LocalDate endDate = endDatePicker.getValue();
         return endDate == null ? null : endDate.atTime(LocalTime.MAX);
+    }
+
+    private LocalDateTime getCurrentRangeStart() {
+        applyStoredDateRangeToInputs();
+        return controller.getAppState().getFilterStartDateTime();
+    }
+
+    private LocalDateTime getCurrentRangeEnd() {
+        applyStoredDateRangeToInputs();
+        return controller.getAppState().getFilterEndDateTime();
+    }
+
+    private void applyStoredDateRangeToInputs() {
+        LocalDateTime start = controller.getAppState().getFilterStartDateTime();
+        LocalDateTime end = controller.getAppState().getFilterEndDateTime();
+        if (start != null && end != null) {
+            startDatePicker.setValue(start.toLocalDate());
+            endDatePicker.setValue(end.toLocalDate());
+            startTimeField.setText(start.toLocalTime().format(TIME_FORMATTER));
+            endTimeField.setText(end.toLocalTime().format(TIME_FORMATTER));
+        }
+    }
+
+    private LocalDateTime resolveDateTime(LocalDate date, String timeText, String label) {
+        if (date == null) {
+            throw new IllegalArgumentException("Select a " + label + " date.");
+        }
+        String rawTime = timeText == null ? "" : timeText.trim();
+        if (rawTime.isBlank()) {
+            throw new IllegalArgumentException("Select a " + label + " time (HH:mm).");
+        }
+        try {
+            LocalTime time = LocalTime.parse(rawTime, TIME_FORMATTER);
+            return LocalDateTime.of(date, time);
+        } catch (DateTimeParseException exception) {
+            throw new IllegalArgumentException("Invalid " + label + " time. Use HH:mm.");
+        }
     }
 
     private long localDateTimeToEpochSeconds(LocalDateTime dateTime) {

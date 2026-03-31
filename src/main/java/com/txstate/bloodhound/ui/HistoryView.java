@@ -55,6 +55,8 @@ public class HistoryView {
     private final TableView<HealthMeasurement> measurementTable = new TableView<>();
     private final DatePicker startDatePicker = new DatePicker();
     private final DatePicker endDatePicker = new DatePicker();
+    private final TextField startTimeField = new TextField("00:00");
+    private final TextField endTimeField = new TextField("23:59");
     private final Label feedbackLabel = new Label();
 
     private final Button refreshButton = new Button("Refresh");
@@ -69,6 +71,7 @@ public class HistoryView {
         this.onBackToDashboard = Objects.requireNonNull(onBackToDashboard, "onBackToDashboard must not be null");
         this.onHistoryChanged = Objects.requireNonNull(onHistoryChanged, "onHistoryChanged must not be null");
         build();
+        applyStoredDateRangeToInputs();
         loadHistory();
     }
 
@@ -146,10 +149,14 @@ public class HistoryView {
 
     private HBox buildFilterBar() {
         Label startLabel = new Label("Start Date:");
+        Label startTimeLabel = new Label("Start Time:");
         Label endLabel = new Label("End Date:");
+        Label endTimeLabel = new Label("End Time:");
         HBox filters = new HBox(8,
                 startLabel, startDatePicker,
+                startTimeLabel, startTimeField,
                 endLabel, endDatePicker,
+                endTimeLabel, endTimeField,
                 applyFilterButton, clearFilterButton);
         filters.setAlignment(Pos.CENTER_LEFT);
         filters.setPadding(new Insets(10));
@@ -176,6 +183,9 @@ public class HistoryView {
         clearFilterButton.setOnAction(event -> {
             startDatePicker.setValue(null);
             endDatePicker.setValue(null);
+            startTimeField.setText("00:00");
+            endTimeField.setText("23:59");
+            controller.getAppState().clearDateTimeFilter();
             loadHistory();
         });
         editButton.setOnAction(event -> editSelected());
@@ -183,30 +193,27 @@ public class HistoryView {
     }
 
     private void loadHistory() {
-        List<HealthMeasurement> measurements = sortByMeasuredAtDesc(controller.loadCurrentUserMeasurements());
-        measurementTable.setItems(FXCollections.observableArrayList(measurements));
-        feedbackLabel.setText("");
-        feedbackLabel.setTextFill(Color.web("#b00020"));
+        if (controller.getAppState().hasDateTimeFilter()) {
+            LocalDateTime start = controller.getAppState().getFilterStartDateTime();
+            LocalDateTime end = controller.getAppState().getFilterEndDateTime();
+            if (start != null && end != null) {
+                loadHistoryByRange(start, end);
+                return;
+            }
+        }
+        showHistory(controller.loadCurrentUserMeasurements());
+        clearFeedback();
     }
 
     private void applyDateFilter() {
-        LocalDate startDate = startDatePicker.getValue();
-        LocalDate endDate = endDatePicker.getValue();
-        if (startDate == null || endDate == null) {
-            setError("Select both start and end dates to filter history.");
+        OperationResult<DateRangeValue> rangeResult = resolveSelectedRange();
+        if (!rangeResult.isSuccess() || rangeResult.getData() == null) {
+            setError(formatOperationErrors(rangeResult));
             return;
         }
-
-        LocalDateTime start = startDate.atStartOfDay();
-        LocalDateTime end = endDate.atTime(LocalTime.MAX);
-        OperationResult<List<HealthMeasurement>> result = controller.loadCurrentUserMeasurements(start, end);
-        if (!result.isSuccess()) {
-            setError(formatOperationErrors(result));
-            return;
-        }
-
-        measurementTable.setItems(FXCollections.observableArrayList(sortByMeasuredAtDesc(result.getData())));
-        feedbackLabel.setText("");
+        DateRangeValue range = rangeResult.getData();
+        controller.getAppState().setDateTimeFilter(range.start(), range.end());
+        loadHistoryByRange(range.start(), range.end());
     }
 
     private void editSelected() {
@@ -376,11 +383,91 @@ public class HistoryView {
     }
 
     private void reloadByCurrentFilter() {
+        if (controller.getAppState().hasDateTimeFilter()) {
+            LocalDateTime start = controller.getAppState().getFilterStartDateTime();
+            LocalDateTime end = controller.getAppState().getFilterEndDateTime();
+            if (start != null && end != null) {
+                loadHistoryByRange(start, end);
+                return;
+            }
+        }
         if (startDatePicker.getValue() != null && endDatePicker.getValue() != null) {
-            applyDateFilter();
+            OperationResult<DateRangeValue> rangeResult = resolveSelectedRange();
+            if (rangeResult.isSuccess() && rangeResult.getData() != null) {
+                DateRangeValue range = rangeResult.getData();
+                controller.getAppState().setDateTimeFilter(range.start(), range.end());
+                loadHistoryByRange(range.start(), range.end());
+                return;
+            }
+            if (!rangeResult.isSuccess()) {
+                setError(formatOperationErrors(rangeResult));
+            }
             return;
         }
         loadHistory();
+    }
+
+    private void loadHistoryByRange(LocalDateTime start, LocalDateTime end) {
+        OperationResult<List<HealthMeasurement>> result = controller.loadCurrentUserMeasurements(start, end);
+        if (!result.isSuccess()) {
+            setError(formatOperationErrors(result));
+            return;
+        }
+        showHistory(result.getData());
+        clearFeedback();
+    }
+
+    private void showHistory(List<HealthMeasurement> measurements) {
+        measurementTable.setItems(FXCollections.observableArrayList(sortByMeasuredAtDesc(measurements)));
+    }
+
+    private void applyStoredDateRangeToInputs() {
+        LocalDateTime start = controller.getAppState().getFilterStartDateTime();
+        LocalDateTime end = controller.getAppState().getFilterEndDateTime();
+        if (start != null && end != null) {
+            startDatePicker.setValue(start.toLocalDate());
+            endDatePicker.setValue(end.toLocalDate());
+            startTimeField.setText(start.toLocalTime().format(TIME_ONLY_FORMATTER));
+            endTimeField.setText(end.toLocalTime().format(TIME_ONLY_FORMATTER));
+        }
+    }
+
+    private OperationResult<DateRangeValue> resolveSelectedRange() {
+        LocalDate startDate = startDatePicker.getValue();
+        LocalDate endDate = endDatePicker.getValue();
+        if (startDate == null || endDate == null) {
+            return OperationResult.failure("Invalid date range.",
+                    List.of("Select both start and end dates."));
+        }
+
+        LocalTime startTime;
+        LocalTime endTime;
+        try {
+            startTime = parseTime(startTimeField.getText(), "Start time");
+            endTime = parseTime(endTimeField.getText(), "End time");
+        } catch (IllegalArgumentException exception) {
+            return OperationResult.failure("Invalid date range.", List.of(exception.getMessage()));
+        }
+
+        LocalDateTime start = LocalDateTime.of(startDate, startTime);
+        LocalDateTime end = LocalDateTime.of(endDate, endTime);
+        if (end.isBefore(start)) {
+            return OperationResult.failure("Invalid date range.",
+                    List.of("End date/time cannot be before start date/time."));
+        }
+        return OperationResult.success("Date range selected.", new DateRangeValue(start, end));
+    }
+
+    private LocalTime parseTime(String raw, String fieldLabel) {
+        String value = raw == null ? "" : raw.trim();
+        if (value.isBlank()) {
+            throw new IllegalArgumentException(fieldLabel + " is required (HH:mm).");
+        }
+        try {
+            return LocalTime.parse(value, TIME_ONLY_FORMATTER);
+        } catch (DateTimeParseException exception) {
+            throw new IllegalArgumentException(fieldLabel + " must use HH:mm format.");
+        }
     }
 
     private String formatDateTime(LocalDateTime value) {
@@ -451,8 +538,16 @@ public class HistoryView {
         feedbackLabel.setText(message);
     }
 
+    private void clearFeedback() {
+        feedbackLabel.setTextFill(Color.web("#b00020"));
+        feedbackLabel.setText("");
+    }
+
     private void setSuccess(String message) {
         feedbackLabel.setTextFill(Color.web("#1b5e20"));
         feedbackLabel.setText(message == null || message.isBlank() ? "Operation succeeded." : message);
+    }
+
+    private record DateRangeValue(LocalDateTime start, LocalDateTime end) {
     }
 }
