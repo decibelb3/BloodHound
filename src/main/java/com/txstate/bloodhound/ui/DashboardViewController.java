@@ -1,7 +1,7 @@
 package com.txstate.bloodhound.ui;
 
 import com.txstate.bloodhound.model.HealthMeasurement;
-import com.txstate.bloodhound.model.TrendPoint;
+import com.txstate.bloodhound.model.MetricPoint;
 import com.txstate.bloodhound.service.AnalyticsService;
 import com.txstate.bloodhound.service.ChartDataService;
 import com.txstate.bloodhound.service.MeasurementService;
@@ -53,7 +53,7 @@ public class DashboardViewController {
         throw new UnsupportedOperationException("Not implemented yet.");
     }
 
-    public List<TrendPoint> loadTrendPoints(String metricKey,
+    public List<MetricPoint> loadTrendPoints(String metricKey,
                                             LocalDateTime startInclusive,
                                             LocalDateTime endInclusive) {
         // TODO: Implement chart data loading.

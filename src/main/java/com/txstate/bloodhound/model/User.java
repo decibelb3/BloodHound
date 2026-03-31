@@ -6,39 +6,33 @@ import java.time.LocalDateTime;
  * Represents an application user account.
  */
 public class User {
-    private Long id;
+    private Long userId;
     private String username;
     private String email;
     private String passwordHash;
     private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-    private boolean active;
 
     public User() {
     }
 
-    public User(Long id,
+    public User(Long userId,
                 String username,
                 String email,
                 String passwordHash,
-                LocalDateTime createdAt,
-                LocalDateTime updatedAt,
-                boolean active) {
-        this.id = id;
+                LocalDateTime createdAt) {
+        this.userId = userId;
         this.username = username;
         this.email = email;
         this.passwordHash = passwordHash;
         this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
-        this.active = active;
     }
 
-    public Long getId() {
-        return id;
+    public Long getUserId() {
+        return userId;
     }
 
-    public void setId(Long id) {
-        this.id = id;
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 
     public String getUsername() {
@@ -73,19 +67,13 @@ public class User {
         this.createdAt = createdAt;
     }
 
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
-    public boolean isActive() {
-        return active;
-    }
-
-    public void setActive(boolean active) {
-        this.active = active;
+    @Override
+    public String toString() {
+        return "User{"
+                + "userId=" + userId
+                + ", username='" + username + '\''
+                + ", email='" + email + '\''
+                + ", createdAt=" + createdAt
+                + '}';
     }
 }

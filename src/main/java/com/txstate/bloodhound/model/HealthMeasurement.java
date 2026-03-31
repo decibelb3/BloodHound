@@ -6,51 +6,48 @@ import java.time.LocalDateTime;
  * Represents a single user-owned health measurement captured at an exact date/time.
  */
 public class HealthMeasurement {
-    private Long id;
+    private Long measurementId;
     private Long userId;
-    private Integer systolicBloodPressure;
-    private Integer diastolicBloodPressure;
+    private Integer systolic;
+    private Integer diastolic;
     private Integer totalCholesterol;
     private Integer hdl;
     private Integer ldl;
     private Double weight;
-    private LocalDateTime measuredAt;
+    private LocalDateTime measurementDateTime;
     private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
 
     public HealthMeasurement() {
     }
 
-    public HealthMeasurement(Long id,
+    public HealthMeasurement(Long measurementId,
                              Long userId,
-                             Integer systolicBloodPressure,
-                             Integer diastolicBloodPressure,
+                             Integer systolic,
+                             Integer diastolic,
                              Integer totalCholesterol,
                              Integer hdl,
                              Integer ldl,
                              Double weight,
-                             LocalDateTime measuredAt,
-                             LocalDateTime createdAt,
-                             LocalDateTime updatedAt) {
-        this.id = id;
+                             LocalDateTime measurementDateTime,
+                             LocalDateTime createdAt) {
+        this.measurementId = measurementId;
         this.userId = userId;
-        this.systolicBloodPressure = systolicBloodPressure;
-        this.diastolicBloodPressure = diastolicBloodPressure;
+        this.systolic = systolic;
+        this.diastolic = diastolic;
         this.totalCholesterol = totalCholesterol;
         this.hdl = hdl;
         this.ldl = ldl;
         this.weight = weight;
-        this.measuredAt = measuredAt;
+        this.measurementDateTime = measurementDateTime;
         this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
     }
 
-    public Long getId() {
-        return id;
+    public Long getMeasurementId() {
+        return measurementId;
     }
 
-    public void setId(Long id) {
-        this.id = id;
+    public void setMeasurementId(Long measurementId) {
+        this.measurementId = measurementId;
     }
 
     public Long getUserId() {
@@ -61,20 +58,20 @@ public class HealthMeasurement {
         this.userId = userId;
     }
 
-    public Integer getSystolicBloodPressure() {
-        return systolicBloodPressure;
+    public Integer getSystolic() {
+        return systolic;
     }
 
-    public void setSystolicBloodPressure(Integer systolicBloodPressure) {
-        this.systolicBloodPressure = systolicBloodPressure;
+    public void setSystolic(Integer systolic) {
+        this.systolic = systolic;
     }
 
-    public Integer getDiastolicBloodPressure() {
-        return diastolicBloodPressure;
+    public Integer getDiastolic() {
+        return diastolic;
     }
 
-    public void setDiastolicBloodPressure(Integer diastolicBloodPressure) {
-        this.diastolicBloodPressure = diastolicBloodPressure;
+    public void setDiastolic(Integer diastolic) {
+        this.diastolic = diastolic;
     }
 
     public Integer getTotalCholesterol() {
@@ -109,12 +106,12 @@ public class HealthMeasurement {
         this.weight = weight;
     }
 
-    public LocalDateTime getMeasuredAt() {
-        return measuredAt;
+    public LocalDateTime getMeasurementDateTime() {
+        return measurementDateTime;
     }
 
-    public void setMeasuredAt(LocalDateTime measuredAt) {
-        this.measuredAt = measuredAt;
+    public void setMeasurementDateTime(LocalDateTime measurementDateTime) {
+        this.measurementDateTime = measurementDateTime;
     }
 
     public LocalDateTime getCreatedAt() {
@@ -125,11 +122,19 @@ public class HealthMeasurement {
         this.createdAt = createdAt;
     }
 
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
+    @Override
+    public String toString() {
+        return "HealthMeasurement{"
+                + "measurementId=" + measurementId
+                + ", userId=" + userId
+                + ", systolic=" + systolic
+                + ", diastolic=" + diastolic
+                + ", totalCholesterol=" + totalCholesterol
+                + ", hdl=" + hdl
+                + ", ldl=" + ldl
+                + ", weight=" + weight
+                + ", measurementDateTime=" + measurementDateTime
+                + ", createdAt=" + createdAt
+                + '}';
     }
 }
