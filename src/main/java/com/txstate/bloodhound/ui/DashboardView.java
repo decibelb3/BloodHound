@@ -42,6 +42,7 @@ public class DashboardView {
     private final Runnable onLogout;
     private final Consumer<Runnable> onOpenAddMeasurement;
     private final Consumer<Runnable> onOpenHistory;
+    private final Consumer<Runnable> onOpenCharts;
 
     private final BorderPane root = new BorderPane();
     private final Label feedbackLabel = new Label();
@@ -75,12 +76,14 @@ public class DashboardView {
                          User user,
                          Runnable onLogout,
                          Consumer<Runnable> onOpenAddMeasurement,
-                         Consumer<Runnable> onOpenHistory) {
+                         Consumer<Runnable> onOpenHistory,
+                         Consumer<Runnable> onOpenCharts) {
         this.controller = Objects.requireNonNull(controller, "controller must not be null");
         this.user = Objects.requireNonNull(user, "user must not be null");
         this.onLogout = Objects.requireNonNull(onLogout, "onLogout must not be null");
         this.onOpenAddMeasurement = Objects.requireNonNull(onOpenAddMeasurement, "onOpenAddMeasurement must not be null");
         this.onOpenHistory = Objects.requireNonNull(onOpenHistory, "onOpenHistory must not be null");
+        this.onOpenCharts = Objects.requireNonNull(onOpenCharts, "onOpenCharts must not be null");
         build();
         refresh();
     }
@@ -255,7 +258,7 @@ public class DashboardView {
 
         viewHistoryButton.setOnAction(event -> onOpenHistory.accept(this::refresh));
         filterByDateButton.setOnAction(event -> loadHistoryByDateRange());
-        viewChartsButton.setOnAction(event -> loadChartSummary());
+        viewChartsButton.setOnAction(event -> onOpenCharts.accept(this::refresh));
     }
 
     private void refreshSummaryCards() {

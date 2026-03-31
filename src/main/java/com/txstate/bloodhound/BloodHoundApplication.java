@@ -12,6 +12,7 @@ import com.txstate.bloodhound.ui.AppState;
 import com.txstate.bloodhound.ui.AddMeasurementView;
 import com.txstate.bloodhound.ui.DashboardViewController;
 import com.txstate.bloodhound.ui.DashboardView;
+import com.txstate.bloodhound.ui.ChartsView;
 import com.txstate.bloodhound.ui.HistoryView;
 import com.txstate.bloodhound.ui.LoginViewController;
 import com.txstate.bloodhound.ui.LoginView;
@@ -104,7 +105,8 @@ public class BloodHoundApplication extends Application {
                 user,
                 this::logoutToLogin,
                 action -> showAddMeasurementScene(),
-                action -> showHistoryScene());
+                action -> showHistoryScene(),
+                action -> showChartsScene());
         dashboardView.getLogoutButton().setOnAction(event -> logoutToLogin());
         Scene scene = new Scene(dashboardView.getRoot(), APP_WIDTH, APP_HEIGHT);
         primaryStage.setTitle("BloodHound 2.0");
@@ -141,6 +143,21 @@ public class BloodHoundApplication extends Application {
                 () -> { });
         Scene scene = new Scene(historyView.getRoot(), APP_WIDTH, APP_HEIGHT);
         primaryStage.setTitle("BloodHound 2.0 - Measurement History");
+        primaryStage.setScene(scene);
+        primaryStage.show();
+    }
+
+    private void showChartsScene() {
+        if (currentDashboardUser == null) {
+            showLoginScene();
+            return;
+        }
+
+        ChartsView chartsView = new ChartsView(
+                dashboardController,
+                () -> showDashboardScene(currentDashboardUser));
+        Scene scene = new Scene(chartsView.getRoot(), APP_WIDTH, APP_HEIGHT);
+        primaryStage.setTitle("BloodHound 2.0 - Trends");
         primaryStage.setScene(scene);
         primaryStage.show();
     }
