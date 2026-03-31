@@ -27,6 +27,19 @@ public class MeasurementService {
     }
 
     /**
+     * Determines whether a measurement id belongs to a specific user.
+     *
+     * @param userId owner user id
+     * @param measurementId target measurement id
+     * @return true when the measurement exists for the user
+     * @throws SQLException when lookup fails
+     */
+    public boolean isMeasurementOwnedByUser(Long userId, Long measurementId) throws SQLException {
+        return healthMeasurementDao.findByUserId(userId).stream()
+                .anyMatch(measurement -> measurementId.equals(measurement.getMeasurementId()));
+    }
+
+    /**
      * Validates and stores a new measurement for a user.
      *
      * @param userId owner user id
@@ -141,11 +154,7 @@ public class MeasurementService {
         }
 
         try {
-            Optional<HealthMeasurement> existing = healthMeasurementDao.findByUserId(userId).stream()
-                    .filter(candidate -> measurement.getMeasurementId().equals(candidate.getMeasurementId()))
-                    .findFirst();
-
-            if (existing.isEmpty()) {
+            if (!isMeasurementOwnedByUser(userId, measurement.getMeasurementId())) {
                 return OperationResult.failure("Update failed.",
                         List.of("Measurement not found for the authenticated user."));
             }
@@ -173,9 +182,7 @@ public class MeasurementService {
         }
 
         try {
-            boolean owned = healthMeasurementDao.findByUserId(userId).stream()
-                    .anyMatch(measurement -> measurementId.equals(measurement.getMeasurementId()));
-            if (!owned) {
+            if (!isMeasurementOwnedByUser(userId, measurementId)) {
                 return OperationResult.failure("Delete failed.",
                         List.of("Measurement not found for the authenticated user."));
             }

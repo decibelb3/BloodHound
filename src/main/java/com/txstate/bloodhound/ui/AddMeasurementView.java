@@ -20,8 +20,6 @@ import javafx.scene.text.Font;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -187,20 +185,10 @@ public class AddMeasurementView {
     }
 
     private LocalDateTime resolveMeasurementDateTime() {
-        LocalDate date = measurementDatePicker.getValue();
-        if (date == null) {
-            throw new IllegalArgumentException("Measurement date is required.");
-        }
-        String rawTime = measurementTimeField.getText() == null ? "" : measurementTimeField.getText().trim();
-        if (rawTime.isBlank()) {
-            throw new IllegalArgumentException("Measurement time is required (HH:mm).");
-        }
-        try {
-            LocalTime time = LocalTime.parse(rawTime);
-            return LocalDateTime.of(date, time);
-        } catch (DateTimeParseException exception) {
-            throw new IllegalArgumentException("Measurement time must use HH:mm format.");
-        }
+        return UiInputUtil.parseDateTime(
+                measurementDatePicker.getValue(),
+                measurementTimeField.getText(),
+                "measurement");
     }
 
     private Integer parseOptionalInteger(String raw, String fieldName) {

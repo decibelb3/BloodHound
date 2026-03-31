@@ -36,13 +36,7 @@ public class AuthService {
 
         String normalizedUsername = normalize(request.getUsername());
         String normalizedEmail = normalize(request.getEmail());
-
-        if (userDao.existsByUsername(normalizedUsername)) {
-            errors.add("Username is already taken.");
-        }
-        if (userDao.existsByEmail(normalizedEmail)) {
-            errors.add("Email is already registered.");
-        }
+        errors.addAll(validateRegistrationUniqueness(normalizedUsername, normalizedEmail));
         if (!errors.isEmpty()) {
             return OperationResult.failure("Registration failed.", errors);
         }
@@ -70,9 +64,7 @@ public class AuthService {
         }
 
         String usernameOrEmail = normalize(request.getUsernameOrEmail());
-        Optional<User> userOptional = usernameOrEmail.contains("@")
-                ? userDao.findByEmail(usernameOrEmail)
-                : userDao.findByUsername(usernameOrEmail);
+        Optional<User> userOptional = resolveUserForLogin(usernameOrEmail);
 
         if (userOptional.isEmpty()) {
             return OperationResult.failure("Login failed.", List.of("Invalid credentials."));
@@ -118,6 +110,23 @@ public class AuthService {
             errors.add("Password is required.");
         }
         return errors;
+    }
+
+    private List<String> validateRegistrationUniqueness(String normalizedUsername, String normalizedEmail) {
+        List<String> errors = new ArrayList<>();
+        if (userDao.existsByUsername(normalizedUsername)) {
+            errors.add("Username is already taken.");
+        }
+        if (userDao.existsByEmail(normalizedEmail)) {
+            errors.add("Email is already registered.");
+        }
+        return errors;
+    }
+
+    private Optional<User> resolveUserForLogin(String usernameOrEmail) {
+        return usernameOrEmail.contains("@")
+                ? userDao.findByEmail(usernameOrEmail)
+                : userDao.findByUsername(usernameOrEmail);
     }
 
     private List<String> validateLoginRequest(LoginRequest request) {

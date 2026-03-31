@@ -1,6 +1,7 @@
 package com.txstate.bloodhound.ui;
 
 import com.txstate.bloodhound.model.MetricPoint;
+import com.txstate.bloodhound.util.OperationResult;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
@@ -20,12 +21,9 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Objects;
 
@@ -37,7 +35,6 @@ import java.util.Objects;
  */
 public class ChartsView {
     private static final DateTimeFormatter DATE_TIME_TOOLTIP_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
 
     private final DashboardViewController controller;
     private final Runnable onBackToDashboard;
@@ -135,29 +132,25 @@ public class ChartsView {
         clearFilterButton.setOnAction(event -> {
             startDatePicker.setValue(null);
             endDatePicker.setValue(null);
-            startTimeField.setText("00:00");
-            endTimeField.setText("23:59");
+            UiInputUtil.resetTimeRangeInputs(startTimeField, endTimeField);
             controller.getAppState().clearDateTimeFilter();
             loadCharts(null, null);
         });
     }
 
     private void applyDateFilter() {
-        LocalDateTime startInclusive;
-        LocalDateTime endInclusive;
-        try {
-            startInclusive = resolveDateTime(startDatePicker.getValue(), startTimeField.getText(), "start");
-            endInclusive = resolveDateTime(endDatePicker.getValue(), endTimeField.getText(), "end");
-        } catch (IllegalArgumentException exception) {
-            setError(exception.getMessage());
+        OperationResult<UiInputUtil.DateTimeRange> rangeResult = UiInputUtil.resolveDateTimeRange(
+                startDatePicker.getValue(),
+                startTimeField.getText(),
+                endDatePicker.getValue(),
+                endTimeField.getText());
+        if (!rangeResult.isSuccess() || rangeResult.getData() == null) {
+            setError(UiInputUtil.formatOperationErrors(rangeResult));
             return;
         }
-        if (endInclusive.isBefore(startInclusive)) {
-            setError("End date/time cannot be before start date/time.");
-            return;
-        }
-        controller.getAppState().setDateTimeFilter(startInclusive, endInclusive);
-        loadCharts(startInclusive, endInclusive);
+        UiInputUtil.DateTimeRange range = rangeResult.getData();
+        controller.getAppState().setDateTimeFilter(range.start(), range.end());
+        loadCharts(range.start(), range.end());
     }
 
     private void loadCharts(LocalDateTime startInclusive, LocalDateTime endInclusive) {
@@ -267,13 +260,11 @@ public class ChartsView {
     }
 
     private LocalDateTime currentStart() {
-        LocalDate startDate = startDatePicker.getValue();
-        return startDate == null ? null : startDate.atStartOfDay();
+        return controller.getAppState().getFilterStartDateTime();
     }
 
     private LocalDateTime currentEnd() {
-        LocalDate endDate = endDatePicker.getValue();
-        return endDate == null ? null : endDate.atTime(LocalTime.MAX);
+        return controller.getAppState().getFilterEndDateTime();
     }
 
     private LocalDateTime getCurrentRangeStart() {
@@ -287,30 +278,15 @@ public class ChartsView {
     }
 
     private void applyStoredDateRangeToInputs() {
-        LocalDateTime start = controller.getAppState().getFilterStartDateTime();
-        LocalDateTime end = controller.getAppState().getFilterEndDateTime();
-        if (start != null && end != null) {
-            startDatePicker.setValue(start.toLocalDate());
-            endDatePicker.setValue(end.toLocalDate());
-            startTimeField.setText(start.toLocalTime().format(TIME_FORMATTER));
-            endTimeField.setText(end.toLocalTime().format(TIME_FORMATTER));
-        }
-    }
-
-    private LocalDateTime resolveDateTime(LocalDate date, String timeText, String label) {
-        if (date == null) {
-            throw new IllegalArgumentException("Select a " + label + " date.");
-        }
-        String rawTime = timeText == null ? "" : timeText.trim();
-        if (rawTime.isBlank()) {
-            throw new IllegalArgumentException("Select a " + label + " time (HH:mm).");
-        }
-        try {
-            LocalTime time = LocalTime.parse(rawTime, TIME_FORMATTER);
-            return LocalDateTime.of(date, time);
-        } catch (DateTimeParseException exception) {
-            throw new IllegalArgumentException("Invalid " + label + " time. Use HH:mm.");
-        }
+        UiInputUtil.applyDateTimeRangeToInputs(
+                controller.getAppState().getFilterStartDateTime(),
+                controller.getAppState().getFilterEndDateTime(),
+                startDatePicker,
+                startTimeField,
+                endDatePicker,
+                endTimeField,
+                "00:00",
+                "23:59");
     }
 
     private long localDateTimeToEpochSeconds(LocalDateTime dateTime) {

@@ -12,7 +12,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * Placeholder controller for the post-login dashboard and measurement management.
+ * Controller for dashboard-facing operations.
+ * <p>
+ * This class orchestrates authenticated, user-scoped calls into
+ * measurement, analytics, and chart services.
  */
 public class DashboardViewController {
     private final AppState appState;
@@ -100,22 +103,6 @@ public class DashboardViewController {
         return measurementService.addMeasurement(userId, measurement);
     }
 
-    public HealthMeasurement createMeasurement(HealthMeasurement measurement) {
-        OperationResult<HealthMeasurement> result = addMeasurement(measurement);
-        if (!result.isSuccess()) {
-            return null;
-        }
-        return result.getData();
-    }
-
-    public HealthMeasurement updateMeasurement(HealthMeasurement measurement) {
-        OperationResult<HealthMeasurement> result = updateMeasurementResult(measurement);
-        if (!result.isSuccess()) {
-            return null;
-        }
-        return result.getData();
-    }
-
     /**
      * Updates a measurement for the currently authenticated user.
      *
@@ -128,11 +115,6 @@ public class DashboardViewController {
             return OperationResult.failure("Unable to update measurement.", List.of("No authenticated user."));
         }
         return measurementService.updateMeasurement(userId, measurement);
-    }
-
-    public boolean deleteMeasurement(Long measurementId) {
-        OperationResult<Void> result = deleteMeasurementResult(measurementId);
-        return result.isSuccess();
     }
 
     /**

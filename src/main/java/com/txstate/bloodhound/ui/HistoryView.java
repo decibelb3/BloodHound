@@ -28,11 +28,9 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -45,7 +43,6 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class HistoryView {
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-    private static final DateTimeFormatter TIME_ONLY_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
 
     private final DashboardViewController controller;
     private final Runnable onBackToDashboard;
@@ -183,8 +180,7 @@ public class HistoryView {
         clearFilterButton.setOnAction(event -> {
             startDatePicker.setValue(null);
             endDatePicker.setValue(null);
-            startTimeField.setText("00:00");
-            endTimeField.setText("23:59");
+            UiInputUtil.resetTimeFields(startTimeField, endTimeField);
             controller.getAppState().clearDateTimeFilter();
             loadHistory();
         });
@@ -206,12 +202,16 @@ public class HistoryView {
     }
 
     private void applyDateFilter() {
-        OperationResult<DateRangeValue> rangeResult = resolveSelectedRange();
+        OperationResult<UiInputUtil.DateTimeRange> rangeResult = UiInputUtil.parseDateTimeRange(
+                startDatePicker.getValue(),
+                startTimeField.getText(),
+                endDatePicker.getValue(),
+                endTimeField.getText());
         if (!rangeResult.isSuccess() || rangeResult.getData() == null) {
             setError(formatOperationErrors(rangeResult));
             return;
         }
-        DateRangeValue range = rangeResult.getData();
+        UiInputUtil.DateTimeRange range = rangeResult.getData();
         controller.getAppState().setDateTimeFilter(range.start(), range.end());
         loadHistoryByRange(range.start(), range.end());
     }
@@ -278,11 +278,11 @@ public class HistoryView {
         TextField ldlField = new TextField(toText(original.getLdl()));
         TextField weightField = new TextField(original.getWeight() == null ? "" : String.valueOf(original.getWeight()));
         DatePicker datePicker = new DatePicker(original.getMeasurementDateTime() == null
-                ? LocalDate.now()
+                ? java.time.LocalDate.now()
                 : original.getMeasurementDateTime().toLocalDate());
         TextField timeField = new TextField(original.getMeasurementDateTime() == null
                 ? "08:00"
-                : original.getMeasurementDateTime().toLocalTime().format(TIME_ONLY_FORMATTER));
+                : original.getMeasurementDateTime().toLocalTime().format(UiInputUtil.TIME_FORMATTER));
         Label dialogFeedbackLabel = new Label();
         dialogFeedbackLabel.setTextFill(Color.web("#b00020"));
         dialogFeedbackLabel.setWrapText(true);
@@ -351,20 +351,19 @@ public class HistoryView {
                                                      String hdlText,
                                                      String ldlText,
                                                      String weightText,
-                                                     LocalDate date,
+                                                     java.time.LocalDate date,
                                                      String timeText) {
         if (date == null) {
             throw new IllegalArgumentException("Measurement date is required.");
         }
-        String timeRaw = timeText == null ? "" : timeText.trim();
-        if (timeRaw.isBlank()) {
+        String rawTime = timeText == null ? "" : timeText.trim();
+        if (rawTime.isBlank()) {
             throw new IllegalArgumentException("Measurement time is required (HH:mm).");
         }
-
-        LocalTime time;
+        LocalDateTime measuredAt;
         try {
-            time = LocalTime.parse(timeRaw);
-        } catch (DateTimeParseException exception) {
+            measuredAt = LocalDateTime.of(date, LocalTime.parse(rawTime, UiInputUtil.TIME_FORMATTER));
+        } catch (Exception exception) {
             throw new IllegalArgumentException("Measurement time must use HH:mm format.");
         }
 
@@ -372,7 +371,7 @@ public class HistoryView {
         edited.setMeasurementId(original.getMeasurementId());
         edited.setUserId(original.getUserId());
         edited.setCreatedAt(original.getCreatedAt());
-        edited.setMeasurementDateTime(LocalDateTime.of(date, time));
+        edited.setMeasurementDateTime(measuredAt);
         edited.setSystolic(parseOptionalInteger(systolicText, "Systolic"));
         edited.setDiastolic(parseOptionalInteger(diastolicText, "Diastolic"));
         edited.setTotalCholesterol(parseOptionalInteger(totalCholesterolText, "Total cholesterol"));
@@ -392,9 +391,13 @@ public class HistoryView {
             }
         }
         if (startDatePicker.getValue() != null && endDatePicker.getValue() != null) {
-            OperationResult<DateRangeValue> rangeResult = resolveSelectedRange();
+            OperationResult<UiInputUtil.DateTimeRange> rangeResult = UiInputUtil.parseDateTimeRange(
+                    startDatePicker.getValue(),
+                    startTimeField.getText(),
+                    endDatePicker.getValue(),
+                    endTimeField.getText());
             if (rangeResult.isSuccess() && rangeResult.getData() != null) {
-                DateRangeValue range = rangeResult.getData();
+                UiInputUtil.DateTimeRange range = rangeResult.getData();
                 controller.getAppState().setDateTimeFilter(range.start(), range.end());
                 loadHistoryByRange(range.start(), range.end());
                 return;
@@ -427,47 +430,11 @@ public class HistoryView {
         if (start != null && end != null) {
             startDatePicker.setValue(start.toLocalDate());
             endDatePicker.setValue(end.toLocalDate());
-            startTimeField.setText(start.toLocalTime().format(TIME_ONLY_FORMATTER));
-            endTimeField.setText(end.toLocalTime().format(TIME_ONLY_FORMATTER));
+            startTimeField.setText(start.toLocalTime().format(UiInputUtil.TIME_FORMATTER));
+            endTimeField.setText(end.toLocalTime().format(UiInputUtil.TIME_FORMATTER));
+            return;
         }
-    }
-
-    private OperationResult<DateRangeValue> resolveSelectedRange() {
-        LocalDate startDate = startDatePicker.getValue();
-        LocalDate endDate = endDatePicker.getValue();
-        if (startDate == null || endDate == null) {
-            return OperationResult.failure("Invalid date range.",
-                    List.of("Select both start and end dates."));
-        }
-
-        LocalTime startTime;
-        LocalTime endTime;
-        try {
-            startTime = parseTime(startTimeField.getText(), "Start time");
-            endTime = parseTime(endTimeField.getText(), "End time");
-        } catch (IllegalArgumentException exception) {
-            return OperationResult.failure("Invalid date range.", List.of(exception.getMessage()));
-        }
-
-        LocalDateTime start = LocalDateTime.of(startDate, startTime);
-        LocalDateTime end = LocalDateTime.of(endDate, endTime);
-        if (end.isBefore(start)) {
-            return OperationResult.failure("Invalid date range.",
-                    List.of("End date/time cannot be before start date/time."));
-        }
-        return OperationResult.success("Date range selected.", new DateRangeValue(start, end));
-    }
-
-    private LocalTime parseTime(String raw, String fieldLabel) {
-        String value = raw == null ? "" : raw.trim();
-        if (value.isBlank()) {
-            throw new IllegalArgumentException(fieldLabel + " is required (HH:mm).");
-        }
-        try {
-            return LocalTime.parse(value, TIME_ONLY_FORMATTER);
-        } catch (DateTimeParseException exception) {
-            throw new IllegalArgumentException(fieldLabel + " must use HH:mm format.");
-        }
+        UiInputUtil.resetTimeFields(startTimeField, endTimeField);
     }
 
     private String formatDateTime(LocalDateTime value) {
@@ -496,41 +463,15 @@ public class HistoryView {
     }
 
     private Integer parseOptionalInteger(String raw, String fieldName) {
-        String value = raw == null ? "" : raw.trim();
-        if (value.isBlank()) {
-            return null;
-        }
-        try {
-            return Integer.parseInt(value);
-        } catch (NumberFormatException exception) {
-            throw new IllegalArgumentException(fieldName + " must be a whole number.");
-        }
+        return UiInputUtil.parseOptionalInteger(raw, fieldName);
     }
 
     private Double parseOptionalDouble(String raw, String fieldName) {
-        String value = raw == null ? "" : raw.trim();
-        if (value.isBlank()) {
-            return null;
-        }
-        try {
-            return Double.parseDouble(value);
-        } catch (NumberFormatException exception) {
-            throw new IllegalArgumentException(fieldName + " must be numeric.");
-        }
+        return UiInputUtil.parseOptionalDouble(raw, fieldName);
     }
 
     private String formatOperationErrors(OperationResult<?> result) {
-        List<String> messages = new ArrayList<>();
-        if (result.getMessage() != null && !result.getMessage().isBlank()) {
-            messages.add(result.getMessage());
-        }
-        if (result.getErrors() != null && !result.getErrors().isEmpty()) {
-            messages.addAll(result.getErrors());
-        }
-        if (messages.isEmpty()) {
-            return "Request failed.";
-        }
-        return String.join(" | ", messages);
+        return UiInputUtil.formatOperationErrors(result, "Request failed.");
     }
 
     private void setError(String message) {
@@ -548,6 +489,4 @@ public class HistoryView {
         feedbackLabel.setText(message == null || message.isBlank() ? "Operation succeeded." : message);
     }
 
-    private record DateRangeValue(LocalDateTime start, LocalDateTime end) {
-    }
 }

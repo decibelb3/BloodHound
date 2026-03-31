@@ -21,11 +21,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -37,9 +33,6 @@ import java.util.function.Consumer;
  * chart placeholder panels, and refresh support.
  */
 public class DashboardView {
-    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-    private static final DateTimeFormatter TIME_ONLY_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
-
     private final DashboardViewController controller;
     private final User user;
     private final Runnable onLogout;
@@ -328,22 +321,19 @@ public class DashboardView {
     }
 
     private void applyDateRangeFilterAcrossDashboard() {
-        LocalDateTime start;
-        LocalDateTime end;
-        try {
-            start = resolveDateTime(startDatePicker.getValue(), startTimeField.getText(), "start");
-            end = resolveDateTime(endDatePicker.getValue(), endTimeField.getText(), "end");
-        } catch (IllegalArgumentException exception) {
-            setFeedback(exception.getMessage());
+        OperationResult<UiInputUtil.DateTimeRange> dateRangeResult = UiInputUtil.resolveDateTimeRange(
+                startDatePicker.getValue(),
+                startTimeField.getText(),
+                endDatePicker.getValue(),
+                endTimeField.getText());
+        if (!dateRangeResult.isSuccess() || dateRangeResult.getData() == null) {
+            setFeedback(formatOperationError(dateRangeResult));
             return;
         }
-        if (end.isBefore(start)) {
-            setFeedback("End date/time cannot be before start date/time.");
-            return;
-        }
-        controller.getAppState().setDateTimeFilter(start, end);
+        UiInputUtil.DateTimeRange range = dateRangeResult.getData();
+        controller.getAppState().setDateTimeFilter(range.start(), range.end());
 
-        refreshSummaryCards(start, end);
+        refreshSummaryCards(range.start(), range.end());
         loadHistorySummary();
         loadChartSummary();
         if (feedbackLabel.getText() == null || feedbackLabel.getText().isBlank()) {
@@ -403,21 +393,19 @@ public class DashboardView {
     }
 
     private String formatDateTime(LocalDateTime value) {
-        return value == null ? "N/A" : DATE_TIME_FORMATTER.format(value);
+        return value == null ? "N/A" : UiInputUtil.DATE_TIME_FORMATTER.format(value);
     }
 
     private void applyStoredDateRangeToInputs() {
-        LocalDateTime start = controller.getAppState().getFilterStartDateTime();
-        LocalDateTime end = controller.getAppState().getFilterEndDateTime();
-        if (start != null && end != null) {
-            startDatePicker.setValue(start.toLocalDate());
-            endDatePicker.setValue(end.toLocalDate());
-            startTimeField.setText(start.toLocalTime().format(TIME_ONLY_FORMATTER));
-            endTimeField.setText(end.toLocalTime().format(TIME_ONLY_FORMATTER));
-            return;
-        }
-        startTimeField.setText("00:00");
-        endTimeField.setText("23:59");
+        UiInputUtil.applyDateTimeRangeToInputs(
+                controller.getAppState().getFilterStartDateTime(),
+                controller.getAppState().getFilterEndDateTime(),
+                startDatePicker,
+                startTimeField,
+                endDatePicker,
+                endTimeField,
+                "00:00",
+                "23:59");
     }
 
     private LocalDateTime getCurrentRangeStart() {
@@ -426,22 +414,6 @@ public class DashboardView {
 
     private LocalDateTime getCurrentRangeEnd() {
         return controller.getAppState().getFilterEndDateTime();
-    }
-
-    private LocalDateTime resolveDateTime(LocalDate date, String timeText, String label) {
-        if (date == null) {
-            throw new IllegalArgumentException("Select a " + label + " date.");
-        }
-        String rawTime = timeText == null ? "" : timeText.trim();
-        if (rawTime.isBlank()) {
-            throw new IllegalArgumentException("Select a " + label + " time (HH:mm).");
-        }
-        try {
-            LocalTime time = LocalTime.parse(rawTime, TIME_ONLY_FORMATTER);
-            return LocalDateTime.of(date, time);
-        } catch (DateTimeParseException exception) {
-            throw new IllegalArgumentException("Invalid " + label + " time. Use HH:mm.");
-        }
     }
 
     private void setFeedback(String text) {
