@@ -77,25 +77,31 @@ public class DashboardViewController {
         return measurementService.getMeasurementHistory(userId);
     }
 
-    public List<HealthMeasurement> loadCurrentUserMeasurements(LocalDateTime startInclusive, LocalDateTime endInclusive) {
+    public OperationResult<List<HealthMeasurement>> loadCurrentUserMeasurements(LocalDateTime startInclusive,
+                                                                                LocalDateTime endInclusive) {
         Long userId = getCurrentUserId();
         if (userId == null) {
-            return List.of();
+            return OperationResult.failure("Unable to load measurements.", List.of("No authenticated user."));
         }
-        OperationResult<List<HealthMeasurement>> result =
-                measurementService.getMeasurementsByDateRange(userId, startInclusive, endInclusive);
-        if (!result.isSuccess() || result.getData() == null) {
-            return List.of();
+        return measurementService.getMeasurementsByDateRange(userId, startInclusive, endInclusive);
+    }
+
+    /**
+     * Adds a measurement for the currently authenticated user.
+     *
+     * @param measurement measurement payload
+     * @return operation result with persisted measurement
+     */
+    public OperationResult<HealthMeasurement> addMeasurement(HealthMeasurement measurement) {
+        Long userId = getCurrentUserId();
+        if (userId == null) {
+            return OperationResult.failure("Unable to add measurement.", List.of("No authenticated user."));
         }
-        return result.getData();
+        return measurementService.addMeasurement(userId, measurement);
     }
 
     public HealthMeasurement createMeasurement(HealthMeasurement measurement) {
-        Long userId = getCurrentUserId();
-        if (userId == null) {
-            return null;
-        }
-        OperationResult<HealthMeasurement> result = measurementService.addMeasurement(userId, measurement);
+        OperationResult<HealthMeasurement> result = addMeasurement(measurement);
         if (!result.isSuccess()) {
             return null;
         }

@@ -9,6 +9,7 @@ import com.txstate.bloodhound.service.AuthService;
 import com.txstate.bloodhound.service.ChartDataService;
 import com.txstate.bloodhound.service.MeasurementService;
 import com.txstate.bloodhound.ui.AppState;
+import com.txstate.bloodhound.ui.AddMeasurementView;
 import com.txstate.bloodhound.ui.DashboardViewController;
 import com.txstate.bloodhound.ui.DashboardView;
 import com.txstate.bloodhound.ui.LoginViewController;
@@ -34,6 +35,7 @@ public class BloodHoundApplication extends Application {
     private AppState appState;
     private Stage primaryStage;
     private DashboardViewController dashboardController;
+    private User currentDashboardUser;
 
     @Override
     public void start(Stage primaryStage) {
@@ -95,7 +97,12 @@ public class BloodHoundApplication extends Application {
     }
 
     private void showDashboardScene(User user) {
-        DashboardView dashboardView = new DashboardView(dashboardController, user, this::logoutToLogin);
+        currentDashboardUser = user;
+        DashboardView dashboardView = new DashboardView(
+                dashboardController,
+                user,
+                this::logoutToLogin,
+                action -> showAddMeasurementScene());
         dashboardView.getLogoutButton().setOnAction(event -> logoutToLogin());
         Scene scene = new Scene(dashboardView.getRoot(), APP_WIDTH, APP_HEIGHT);
         primaryStage.setTitle("BloodHound 2.0");
@@ -103,8 +110,26 @@ public class BloodHoundApplication extends Application {
         primaryStage.show();
     }
 
+    private void showAddMeasurementScene() {
+        if (currentDashboardUser == null) {
+            showLoginScene();
+            return;
+        }
+
+        AddMeasurementView addMeasurementView = new AddMeasurementView(
+                dashboardController,
+                () -> showDashboardScene(currentDashboardUser),
+                () -> showDashboardScene(currentDashboardUser));
+
+        Scene scene = new Scene(addMeasurementView.getRoot(), APP_WIDTH, APP_HEIGHT);
+        primaryStage.setTitle("BloodHound 2.0 - Add Measurement");
+        primaryStage.setScene(scene);
+        primaryStage.show();
+    }
+
     private void logoutToLogin() {
         appState.setCurrentUser(null);
+        currentDashboardUser = null;
         showLoginScene();
     }
 

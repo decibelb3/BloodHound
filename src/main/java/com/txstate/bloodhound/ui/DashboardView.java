@@ -26,6 +26,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * JavaFX main dashboard view shown after successful login.
@@ -39,6 +40,7 @@ public class DashboardView {
     private final DashboardViewController controller;
     private final User user;
     private final Runnable onLogout;
+    private final Consumer<Runnable> onOpenAddMeasurement;
 
     private final BorderPane root = new BorderPane();
     private final Label feedbackLabel = new Label();
@@ -68,10 +70,14 @@ public class DashboardView {
     private final Button viewChartsButton = new Button("View Charts");
     private final Button logoutButton = new Button("Log Out");
 
-    public DashboardView(DashboardViewController controller, User user, Runnable onLogout) {
+    public DashboardView(DashboardViewController controller,
+                         User user,
+                         Runnable onLogout,
+                         Consumer<Runnable> onOpenAddMeasurement) {
         this.controller = Objects.requireNonNull(controller, "controller must not be null");
         this.user = Objects.requireNonNull(user, "user must not be null");
         this.onLogout = Objects.requireNonNull(onLogout, "onLogout must not be null");
+        this.onOpenAddMeasurement = Objects.requireNonNull(onOpenAddMeasurement, "onOpenAddMeasurement must not be null");
         build();
         refresh();
     }
@@ -242,8 +248,7 @@ public class DashboardView {
         refreshButton.setOnAction(event -> refresh());
         logoutButton.setOnAction(event -> onLogout.run());
 
-        addMeasurementButton.setOnAction(event ->
-                setFeedback("Add Measurement: form/modal integration placeholder."));
+        addMeasurementButton.setOnAction(event -> onOpenAddMeasurement.accept(this::refresh));
 
         viewHistoryButton.setOnAction(event -> loadHistorySummary());
         filterByDateButton.setOnAction(event -> loadHistoryByDateRange());
@@ -303,10 +308,15 @@ public class DashboardView {
 
         LocalDateTime start = startDate.atStartOfDay();
         LocalDateTime end = endDate.atTime(LocalTime.MAX);
-        List<HealthMeasurement> data = controller.loadCurrentUserMeasurements(start, end);
+        OperationResult<List<HealthMeasurement>> result = controller.loadCurrentUserMeasurements(start, end);
+        if (!result.isSuccess()) {
+            setFeedback(formatOperationError(result));
+            return;
+        }
+        List<HealthMeasurement> data = result.getData();
         historySummaryLabel.setText("Date range result: " + data.size() + " measurement(s).");
         if (data.isEmpty()) {
-            setFeedback("No measurements found in selected date range (or filter was invalid).");
+            setFeedback("No measurements found in selected date range.");
         } else {
             clearFeedback();
         }
