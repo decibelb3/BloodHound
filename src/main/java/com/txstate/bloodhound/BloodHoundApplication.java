@@ -21,6 +21,7 @@ import com.txstate.bloodhound.ui.RegistrationView;
 import com.txstate.bloodhound.model.User;
 import com.txstate.bloodhound.util.DatabaseConfig;
 import com.txstate.bloodhound.util.DatabaseConnectionManager;
+import com.txstate.bloodhound.util.DemoDataInitializer;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
@@ -52,6 +53,8 @@ public class BloodHoundApplication extends Application {
         // DAO and service wiring placeholders.
         UserDao userDao = new UserDaoImpl(connectionManager);
         HealthMeasurementDao measurementDao = new HealthMeasurementDaoImpl(connectionManager);
+        DemoDataInitializer demoDataInitializer = new DemoDataInitializer(userDao, measurementDao);
+        demoDataInitializer.seedIfNeeded();
 
         AuthService authService = new AuthService(userDao);
         MeasurementService measurementService = new MeasurementService(measurementDao);
