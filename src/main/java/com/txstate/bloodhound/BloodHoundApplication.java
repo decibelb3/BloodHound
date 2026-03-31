@@ -41,7 +41,7 @@ public class BloodHoundApplication extends Application {
 
         AuthService authService = new AuthService(userDao);
         MeasurementService measurementService = new MeasurementService(measurementDao);
-        ChartDataService chartDataService = new ChartDataService(measurementService);
+        ChartDataService chartDataService = new ChartDataService(measurementDao);
         AnalyticsService analyticsService = new AnalyticsService(measurementDao, chartDataService);
         AppState appState = new AppState();
 
