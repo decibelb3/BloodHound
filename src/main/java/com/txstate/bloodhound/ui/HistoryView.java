@@ -4,16 +4,23 @@ import com.txstate.bloodhound.model.HealthMeasurement;
 import com.txstate.bloodhound.util.OperationResult;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
+import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonBar;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.DatePicker;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
+import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -30,12 +37,15 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * JavaFX history screen for viewing and managing user measurements.
  */
 public class HistoryView {
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private static final DateTimeFormatter TIME_ONLY_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
 
     private final DashboardViewController controller;
     private final Runnable onBackToDashboard;
@@ -47,19 +57,10 @@ public class HistoryView {
     private final DatePicker endDatePicker = new DatePicker();
     private final Label feedbackLabel = new Label();
 
-    private final TextField editSystolicField = new TextField();
-    private final TextField editDiastolicField = new TextField();
-    private final TextField editTotalCholesterolField = new TextField();
-    private final TextField editHdlField = new TextField();
-    private final TextField editLdlField = new TextField();
-    private final TextField editWeightField = new TextField();
-    private final DatePicker editDatePicker = new DatePicker();
-    private final TextField editTimeField = new TextField();
-
     private final Button refreshButton = new Button("Refresh");
     private final Button applyFilterButton = new Button("Apply Date Filter");
     private final Button clearFilterButton = new Button("Clear Filter");
-    private final Button saveEditButton = new Button("Save Edit");
+    private final Button editButton = new Button("Edit Selected");
     private final Button deleteButton = new Button("Delete Selected");
     private final Button backButton = new Button("Back to Dashboard");
 
@@ -100,14 +101,15 @@ public class HistoryView {
 
         configureTable();
         measurementTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        measurementTable.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
 
         HBox filterBar = buildFilterBar();
-        VBox editPanel = buildEditPanel();
+        HBox actionsBar = buildActionsBar();
 
         feedbackLabel.setWrapText(true);
         feedbackLabel.setTextFill(Color.web("#b00020"));
 
-        VBox center = new VBox(10, filterBar, measurementTable, editPanel, feedbackLabel);
+        VBox center = new VBox(10, filterBar, actionsBar, measurementTable, feedbackLabel);
         VBox.setVgrow(measurementTable, Priority.ALWAYS);
 
         root.setTop(topBar);
@@ -156,42 +158,14 @@ public class HistoryView {
         return filters;
     }
 
-    private VBox buildEditPanel() {
-        Label panelTitle = new Label("Edit Selected Measurement");
-        panelTitle.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #25324a;");
-
-        HBox row1 = new HBox(8,
-                labeledField("Systolic", editSystolicField),
-                labeledField("Diastolic", editDiastolicField),
-                labeledField("Total Cholesterol", editTotalCholesterolField));
-        HBox row2 = new HBox(8,
-                labeledField("HDL", editHdlField),
-                labeledField("LDL", editLdlField),
-                labeledField("Weight", editWeightField));
-        HBox row3 = new HBox(8,
-                labeledField("Date", editDatePicker),
-                labeledField("Time (HH:mm)", editTimeField),
-                saveEditButton,
-                deleteButton);
-        row1.setAlignment(Pos.CENTER_LEFT);
-        row2.setAlignment(Pos.CENTER_LEFT);
-        row3.setAlignment(Pos.CENTER_LEFT);
-
-        saveEditButton.setStyle("-fx-background-color: #2f6fed; -fx-text-fill: white; -fx-font-weight: bold;");
-
-        VBox panel = new VBox(8, panelTitle, row1, row2, row3);
-        panel.setPadding(new Insets(10));
-        panel.setStyle("-fx-background-color: white; -fx-border-color: #d9e1ef; "
+    private HBox buildActionsBar() {
+        editButton.setStyle("-fx-background-color: #2f6fed; -fx-text-fill: white; -fx-font-weight: bold;");
+        HBox actionBar = new HBox(8, editButton, deleteButton);
+        actionBar.setAlignment(Pos.CENTER_LEFT);
+        actionBar.setPadding(new Insets(10));
+        actionBar.setStyle("-fx-background-color: white; -fx-border-color: #d9e1ef; "
                 + "-fx-background-radius: 8; -fx-border-radius: 8;");
-        return panel;
-    }
-
-    private VBox labeledField(String label, javafx.scene.Node field) {
-        Label fieldLabel = new Label(label);
-        fieldLabel.setTextFill(Color.web("#33415c"));
-        VBox box = new VBox(4, fieldLabel, field);
-        box.setMinWidth(150);
-        return box;
+        return actionBar;
     }
 
     private void attachActions() {
@@ -204,11 +178,7 @@ public class HistoryView {
             endDatePicker.setValue(null);
             loadHistory();
         });
-
-        measurementTable.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, selected) ->
-                populateEditor(selected));
-
-        saveEditButton.setOnAction(event -> saveSelectedEdit());
+        editButton.setOnAction(event -> editSelected());
         deleteButton.setOnAction(event -> deleteSelected());
     }
 
@@ -239,25 +209,7 @@ public class HistoryView {
         feedbackLabel.setText("");
     }
 
-    private void populateEditor(HealthMeasurement measurement) {
-        if (measurement == null) {
-            clearEditor();
-            return;
-        }
-        editSystolicField.setText(toText(measurement.getSystolic()));
-        editDiastolicField.setText(toText(measurement.getDiastolic()));
-        editTotalCholesterolField.setText(toText(measurement.getTotalCholesterol()));
-        editHdlField.setText(toText(measurement.getHdl()));
-        editLdlField.setText(toText(measurement.getLdl()));
-        editWeightField.setText(measurement.getWeight() == null ? "" : String.format("%.1f", measurement.getWeight()));
-        editDatePicker.setValue(measurement.getMeasurementDateTime() == null
-                ? null : measurement.getMeasurementDateTime().toLocalDate());
-        editTimeField.setText(measurement.getMeasurementDateTime() == null
-                ? ""
-                : measurement.getMeasurementDateTime().toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm")));
-    }
-
-    private void saveSelectedEdit() {
+    private void editSelected() {
         feedbackLabel.setTextFill(Color.web("#b00020"));
         HealthMeasurement selected = measurementTable.getSelectionModel().getSelectedItem();
         if (selected == null) {
@@ -265,15 +217,12 @@ public class HistoryView {
             return;
         }
 
-        HealthMeasurement edited;
-        try {
-            edited = buildEditedMeasurement(selected);
-        } catch (IllegalArgumentException exception) {
-            setError(exception.getMessage());
+        Optional<HealthMeasurement> editResult = showEditDialog(selected);
+        if (editResult.isEmpty()) {
             return;
         }
 
-        OperationResult<HealthMeasurement> result = controller.updateMeasurementResult(edited);
+        OperationResult<HealthMeasurement> result = controller.updateMeasurementResult(editResult.get());
         if (!result.isSuccess()) {
             setError(formatOperationErrors(result));
             return;
@@ -292,6 +241,10 @@ public class HistoryView {
             return;
         }
 
+        if (!confirmDeletion(selected)) {
+            return;
+        }
+
         OperationResult<Void> result = controller.deleteMeasurementResult(selected.getMeasurementId());
         if (!result.isSuccess()) {
             setError(formatOperationErrors(result));
@@ -303,12 +256,100 @@ public class HistoryView {
         reloadByCurrentFilter();
     }
 
-    private HealthMeasurement buildEditedMeasurement(HealthMeasurement original) {
-        LocalDate date = editDatePicker.getValue();
+    private Optional<HealthMeasurement> showEditDialog(HealthMeasurement original) {
+        Dialog<HealthMeasurement> dialog = new Dialog<>();
+        dialog.setTitle("Edit Measurement");
+        dialog.setHeaderText("Update the selected measurement values.");
+
+        ButtonType saveButtonType = new ButtonType("Save Changes", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
+
+        TextField systolicField = new TextField(toText(original.getSystolic()));
+        TextField diastolicField = new TextField(toText(original.getDiastolic()));
+        TextField totalCholesterolField = new TextField(toText(original.getTotalCholesterol()));
+        TextField hdlField = new TextField(toText(original.getHdl()));
+        TextField ldlField = new TextField(toText(original.getLdl()));
+        TextField weightField = new TextField(original.getWeight() == null ? "" : String.valueOf(original.getWeight()));
+        DatePicker datePicker = new DatePicker(original.getMeasurementDateTime() == null
+                ? LocalDate.now()
+                : original.getMeasurementDateTime().toLocalDate());
+        TextField timeField = new TextField(original.getMeasurementDateTime() == null
+                ? "08:00"
+                : original.getMeasurementDateTime().toLocalTime().format(TIME_ONLY_FORMATTER));
+        Label dialogFeedbackLabel = new Label();
+        dialogFeedbackLabel.setTextFill(Color.web("#b00020"));
+        dialogFeedbackLabel.setWrapText(true);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(8);
+        grid.setPadding(new Insets(10, 0, 0, 0));
+        addDialogField(grid, 0, "Systolic:", systolicField);
+        addDialogField(grid, 1, "Diastolic:", diastolicField);
+        addDialogField(grid, 2, "Total Cholesterol:", totalCholesterolField);
+        addDialogField(grid, 3, "HDL:", hdlField);
+        addDialogField(grid, 4, "LDL:", ldlField);
+        addDialogField(grid, 5, "Weight:", weightField);
+        addDialogField(grid, 6, "Date:", datePicker);
+        addDialogField(grid, 7, "Time (HH:mm):", timeField);
+        grid.add(dialogFeedbackLabel, 0, 8, 2, 1);
+
+        dialog.getDialogPane().setContent(grid);
+
+        AtomicReference<HealthMeasurement> editedReference = new AtomicReference<>();
+        javafx.scene.Node saveButton = dialog.getDialogPane().lookupButton(saveButtonType);
+        saveButton.addEventFilter(ActionEvent.ACTION, event -> {
+            try {
+                editedReference.set(buildEditedMeasurement(
+                        original,
+                        systolicField.getText(),
+                        diastolicField.getText(),
+                        totalCholesterolField.getText(),
+                        hdlField.getText(),
+                        ldlField.getText(),
+                        weightField.getText(),
+                        datePicker.getValue(),
+                        timeField.getText()));
+            } catch (IllegalArgumentException exception) {
+                dialogFeedbackLabel.setText(exception.getMessage());
+                event.consume();
+            }
+        });
+
+        dialog.setResultConverter(buttonType ->
+                buttonType == saveButtonType ? editedReference.get() : null);
+        return dialog.showAndWait();
+    }
+
+    private void addDialogField(GridPane grid, int row, String labelText, javafx.scene.Node field) {
+        Label label = new Label(labelText);
+        label.setTextFill(Color.web("#33415c"));
+        grid.add(label, 0, row);
+        grid.add(field, 1, row);
+    }
+
+    private boolean confirmDeletion(HealthMeasurement measurement) {
+        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmation.setTitle("Delete Measurement");
+        confirmation.setHeaderText("Delete selected measurement?");
+        confirmation.setContentText("Measurement date/time: " + formatDateTime(measurement.getMeasurementDateTime()));
+        Optional<ButtonType> result = confirmation.showAndWait();
+        return result.isPresent() && result.get() == ButtonType.OK;
+    }
+
+    private HealthMeasurement buildEditedMeasurement(HealthMeasurement original,
+                                                     String systolicText,
+                                                     String diastolicText,
+                                                     String totalCholesterolText,
+                                                     String hdlText,
+                                                     String ldlText,
+                                                     String weightText,
+                                                     LocalDate date,
+                                                     String timeText) {
         if (date == null) {
             throw new IllegalArgumentException("Measurement date is required.");
         }
-        String timeRaw = editTimeField.getText() == null ? "" : editTimeField.getText().trim();
+        String timeRaw = timeText == null ? "" : timeText.trim();
         if (timeRaw.isBlank()) {
             throw new IllegalArgumentException("Measurement time is required (HH:mm).");
         }
@@ -325,12 +366,12 @@ public class HistoryView {
         edited.setUserId(original.getUserId());
         edited.setCreatedAt(original.getCreatedAt());
         edited.setMeasurementDateTime(LocalDateTime.of(date, time));
-        edited.setSystolic(parseOptionalInteger(editSystolicField.getText(), "Systolic"));
-        edited.setDiastolic(parseOptionalInteger(editDiastolicField.getText(), "Diastolic"));
-        edited.setTotalCholesterol(parseOptionalInteger(editTotalCholesterolField.getText(), "Total cholesterol"));
-        edited.setHdl(parseOptionalInteger(editHdlField.getText(), "HDL"));
-        edited.setLdl(parseOptionalInteger(editLdlField.getText(), "LDL"));
-        edited.setWeight(parseOptionalDouble(editWeightField.getText(), "Weight"));
+        edited.setSystolic(parseOptionalInteger(systolicText, "Systolic"));
+        edited.setDiastolic(parseOptionalInteger(diastolicText, "Diastolic"));
+        edited.setTotalCholesterol(parseOptionalInteger(totalCholesterolText, "Total cholesterol"));
+        edited.setHdl(parseOptionalInteger(hdlText, "HDL"));
+        edited.setLdl(parseOptionalInteger(ldlText, "LDL"));
+        edited.setWeight(parseOptionalDouble(weightText, "Weight"));
         return edited;
     }
 
@@ -340,17 +381,6 @@ public class HistoryView {
             return;
         }
         loadHistory();
-    }
-
-    private void clearEditor() {
-        editSystolicField.clear();
-        editDiastolicField.clear();
-        editTotalCholesterolField.clear();
-        editHdlField.clear();
-        editLdlField.clear();
-        editWeightField.clear();
-        editDatePicker.setValue(null);
-        editTimeField.clear();
     }
 
     private String formatDateTime(LocalDateTime value) {
