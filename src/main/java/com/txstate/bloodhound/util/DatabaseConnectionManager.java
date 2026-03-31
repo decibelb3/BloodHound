@@ -3,22 +3,40 @@ package com.txstate.bloodhound.util;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.Objects;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
- * Centralizes JDBC connection settings and connection creation for MySQL.
+ * Manages JDBC connection creation for MySQL.
+ * <p>
+ * This class is intentionally limited to connection concerns only.
  */
 public class DatabaseConnectionManager {
-    private String jdbcUrl;
-    private String username;
-    private String password;
+    private static final Logger LOGGER = Logger.getLogger(DatabaseConnectionManager.class.getName());
 
+    private final String jdbcUrl;
+    private final String username;
+    private final String password;
+
+    /**
+     * Creates a connection manager using values from {@link DatabaseConfig}.
+     */
     public DatabaseConnectionManager() {
+        this(DatabaseConfig.DB_URL, DatabaseConfig.DB_USERNAME, DatabaseConfig.DB_PASSWORD);
     }
 
+    /**
+     * Creates a connection manager using supplied JDBC configuration.
+     *
+     * @param jdbcUrl JDBC URL
+     * @param username database username
+     * @param password database password
+     */
     public DatabaseConnectionManager(String jdbcUrl, String username, String password) {
-        this.jdbcUrl = jdbcUrl;
-        this.username = username;
-        this.password = password;
+        this.jdbcUrl = Objects.requireNonNull(jdbcUrl, "jdbcUrl must not be null");
+        this.username = Objects.requireNonNull(username, "username must not be null");
+        this.password = Objects.requireNonNull(password, "password must not be null");
     }
 
     /**
@@ -28,30 +46,23 @@ public class DatabaseConnectionManager {
      * @throws SQLException when connection cannot be established
      */
     public Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(jdbcUrl, username, password);
+        try {
+            return DriverManager.getConnection(jdbcUrl, username, password);
+        } catch (SQLException exception) {
+            LOGGER.log(Level.SEVERE, "Unable to establish MySQL connection: {0}", exception.getMessage());
+            throw exception;
+        }
     }
 
     public String getJdbcUrl() {
         return jdbcUrl;
     }
 
-    public void setJdbcUrl(String jdbcUrl) {
-        this.jdbcUrl = jdbcUrl;
-    }
-
     public String getUsername() {
         return username;
     }
 
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
     public String getPassword() {
         return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
     }
 }

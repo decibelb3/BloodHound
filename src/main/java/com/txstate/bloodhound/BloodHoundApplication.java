@@ -12,6 +12,7 @@ import com.txstate.bloodhound.ui.AppState;
 import com.txstate.bloodhound.ui.DashboardViewController;
 import com.txstate.bloodhound.ui.LoginViewController;
 import com.txstate.bloodhound.ui.RegisterViewController;
+import com.txstate.bloodhound.util.DatabaseConfig;
 import com.txstate.bloodhound.util.DatabaseConnectionManager;
 import javafx.application.Application;
 import javafx.scene.Scene;
@@ -30,9 +31,9 @@ public class BloodHoundApplication extends Application {
     public void start(Stage primaryStage) {
         // Centralized connection settings for DAO construction.
         DatabaseConnectionManager connectionManager = new DatabaseConnectionManager(
-                "jdbc:mysql://localhost:3306/bloodhound2",
-                "bloodhound_user",
-                "change_me");
+                DatabaseConfig.DB_URL,
+                DatabaseConfig.DB_USERNAME,
+                DatabaseConfig.DB_PASSWORD);
 
         // DAO and service wiring placeholders.
         UserDao userDao = new JdbcUserDao(connectionManager);
