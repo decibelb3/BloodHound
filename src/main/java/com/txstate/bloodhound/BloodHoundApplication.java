@@ -1,7 +1,7 @@
 package com.txstate.bloodhound;
 
 import com.txstate.bloodhound.dao.HealthMeasurementDao;
-import com.txstate.bloodhound.dao.JdbcHealthMeasurementDao;
+import com.txstate.bloodhound.dao.HealthMeasurementDaoImpl;
 import com.txstate.bloodhound.dao.UserDaoImpl;
 import com.txstate.bloodhound.dao.UserDao;
 import com.txstate.bloodhound.service.AnalyticsService;
@@ -37,7 +37,7 @@ public class BloodHoundApplication extends Application {
 
         // DAO and service wiring placeholders.
         UserDao userDao = new UserDaoImpl(connectionManager);
-        HealthMeasurementDao measurementDao = new JdbcHealthMeasurementDao(connectionManager);
+        HealthMeasurementDao measurementDao = new HealthMeasurementDaoImpl(connectionManager);
 
         AuthService authService = new AuthService(userDao);
         MeasurementService measurementService = new MeasurementService(measurementDao);

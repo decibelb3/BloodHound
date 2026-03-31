@@ -8,66 +8,73 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Data access contract for health measurements.
+ * Data access contract for user-scoped health measurements.
  */
 public interface HealthMeasurementDao {
     /**
-     * Finds one measurement belonging to a specific user.
+     * Persists a new health measurement.
      *
-     * @param measurementId measurement identifier
-     * @param userId owner user identifier
-     * @return optional measurement
-     * @throws SQLException when query fails
+     * @param measurement measurement to persist
+     * @return persisted measurement with generated id if available
+     * @throws SQLException when persistence fails
      */
-    Optional<HealthMeasurement> findByIdAndUserId(Long measurementId, Long userId) throws SQLException;
+    HealthMeasurement save(HealthMeasurement measurement) throws SQLException;
 
     /**
-     * Finds all measurements for a user.
+     * Finds all measurements for the specified user.
      *
      * @param userId owner user identifier
-     * @return ordered measurements
+     * @return measurements for the user
      * @throws SQLException when query fails
      */
     List<HealthMeasurement> findByUserId(Long userId) throws SQLException;
 
     /**
-     * Finds user measurements within an inclusive date/time range.
+     * Finds all measurements for a user ordered by measurement date ascending.
      *
      * @param userId owner user identifier
-     * @param startInclusive range start
-     * @param endInclusive range end
+     * @return ordered measurement history
+     * @throws SQLException when query fails
+     */
+    List<HealthMeasurement> findByUserIdOrderedByDate(Long userId) throws SQLException;
+
+    /**
+     * Finds all measurements for a user within an inclusive date range, ordered by measurement date ascending.
+     *
+     * @param userId owner user identifier
+     * @param start range start (inclusive)
+     * @param end range end (inclusive)
      * @return matching measurements
      * @throws SQLException when query fails
      */
-    List<HealthMeasurement> findByUserIdAndRange(Long userId,
-                                                 LocalDateTime startInclusive,
-                                                 LocalDateTime endInclusive) throws SQLException;
+    List<HealthMeasurement> findByUserIdAndDateRange(Long userId,
+                                                     LocalDateTime start,
+                                                     LocalDateTime end) throws SQLException;
 
     /**
-     * Persists a new user-owned measurement.
+     * Finds the latest measurement for a user.
      *
-     * @param measurement measurement to persist
-     * @return persisted measurement
-     * @throws SQLException when persistence fails
+     * @param userId owner user identifier
+     * @return optional latest measurement
+     * @throws SQLException when query fails
      */
-    HealthMeasurement create(HealthMeasurement measurement) throws SQLException;
+    Optional<HealthMeasurement> findLatestByUserId(Long userId) throws SQLException;
 
     /**
-     * Updates an existing user-owned measurement.
-     *
-     * @param measurement measurement to update
-     * @return updated measurement
-     * @throws SQLException when update fails
-     */
-    HealthMeasurement update(HealthMeasurement measurement) throws SQLException;
-
-    /**
-     * Deletes a measurement that belongs to the specified user.
+     * Deletes one measurement for the owning user.
      *
      * @param measurementId measurement identifier
      * @param userId owner user identifier
-     * @return true when deletion occurred
      * @throws SQLException when delete fails
      */
-    boolean deleteByIdAndUserId(Long measurementId, Long userId) throws SQLException;
+    void deleteByIdAndUserId(Long measurementId, Long userId) throws SQLException;
+
+    /**
+     * Updates an existing user-scoped measurement.
+     *
+     * @param measurement measurement payload
+     * @return updated measurement payload
+     * @throws SQLException when update fails
+     */
+    HealthMeasurement update(HealthMeasurement measurement) throws SQLException;
 }
