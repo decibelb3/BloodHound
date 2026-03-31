@@ -2,7 +2,6 @@ package com.txstate.bloodhound.dao;
 
 import com.txstate.bloodhound.model.User;
 
-import java.sql.SQLException;
 import java.util.Optional;
 
 /**
@@ -11,46 +10,50 @@ import java.util.Optional;
 public interface UserDao {
 
     /**
-     * Persists a new user account.
-     *
-     * @param user user to persist
-     * @return persisted user with generated identifiers when applicable
-     * @throws SQLException when persistence fails
-     */
-    User create(User user) throws SQLException;
-
-    /**
      * Finds a user by unique identifier.
      *
-     * @param id user id
+     * @param userId user id
      * @return optional user
-     * @throws SQLException when query fails
      */
-    Optional<User> findById(Long id) throws SQLException;
+    Optional<User> findById(Long userId);
 
     /**
      * Finds a user by username.
      *
      * @param username username
      * @return optional user
-     * @throws SQLException when query fails
      */
-    Optional<User> findByUsername(String username) throws SQLException;
+    Optional<User> findByUsername(String username);
 
     /**
      * Finds a user by email.
      *
      * @param email email
      * @return optional user
-     * @throws SQLException when query fails
      */
-    Optional<User> findByEmail(String email) throws SQLException;
+    Optional<User> findByEmail(String email);
 
     /**
-     * Updates persisted fields for a user.
+     * Persists a new user account.
      *
-     * @param user user data to update
-     * @throws SQLException when update fails
+     * @param user user to persist
+     * @return persisted user with generated identifiers when applicable
      */
-    void update(User user) throws SQLException;
+    User createUser(User user);
+
+    /**
+     * Checks whether the provided username already exists.
+     *
+     * @param username username
+     * @return true when username already exists
+     */
+    boolean existsByUsername(String username);
+
+    /**
+     * Checks whether the provided email already exists.
+     *
+     * @param email email
+     * @return true when email already exists
+     */
+    boolean existsByEmail(String email);
 }
