@@ -4,20 +4,41 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.txstate</groupId>
-    <artifactId>bloodhound</artifactId>
+    <artifactId>bloodhound-2</artifactId>
     <version>2.0.0</version>
-    <name>Bloodhound</name>
-    <description>Standalone offline health tracking system</description>
+    <name>BloodHound 2.0</name>
+    <description>Multi-user health tracking with JavaFX and MySQL</description>
 
     <properties>
         <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <javafx.version>17.0.2</javafx.version>
     </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-fxml</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <version>9.6.0</version>
+        </dependency>
+    </dependencies>
 
     <build>
         <plugins>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
                 <configuration>
                     <release>${maven.compiler.release}</release>
                 </configuration>
@@ -26,7 +47,15 @@
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
                 <configuration>
-                    <mainClass>com.txstate.bloodhound.BloodhoundDesktopApplication</mainClass>
+                    <mainClass>com.txstate.bloodhound.BloodHoundApplication</mainClass>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>0.0.8</version>
+                <configuration>
+                    <mainClass>com.txstate.bloodhound.BloodHoundApplication</mainClass>
                 </configuration>
             </plugin>
         </plugins>
