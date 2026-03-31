@@ -126,6 +126,8 @@ public class AddMeasurementView {
     }
 
     private void handleSave() {
+        feedbackLabel.setTextFill(Color.web("#b00020"));
+
         LocalDateTime measurementDateTime;
         try {
             measurementDateTime = resolveMeasurementDateTime();
@@ -134,13 +136,19 @@ public class AddMeasurementView {
             return;
         }
 
-        HealthMeasurement measurement = new HealthMeasurement();
-        measurement.setSystolic(parseOptionalInteger(systolicField.getText(), "Systolic"));
-        measurement.setDiastolic(parseOptionalInteger(diastolicField.getText(), "Diastolic"));
-        measurement.setTotalCholesterol(parseOptionalInteger(totalCholesterolField.getText(), "Total cholesterol"));
-        measurement.setHdl(parseOptionalInteger(hdlField.getText(), "HDL"));
-        measurement.setLdl(parseOptionalInteger(ldlField.getText(), "LDL"));
-        measurement.setWeight(parseOptionalDouble(weightField.getText(), "Weight"));
+        HealthMeasurement measurement;
+        try {
+            measurement = new HealthMeasurement();
+            measurement.setSystolic(parseOptionalInteger(systolicField.getText(), "Systolic"));
+            measurement.setDiastolic(parseOptionalInteger(diastolicField.getText(), "Diastolic"));
+            measurement.setTotalCholesterol(parseOptionalInteger(totalCholesterolField.getText(), "Total cholesterol"));
+            measurement.setHdl(parseOptionalInteger(hdlField.getText(), "HDL"));
+            measurement.setLdl(parseOptionalInteger(ldlField.getText(), "LDL"));
+            measurement.setWeight(parseOptionalDouble(weightField.getText(), "Weight"));
+        } catch (IllegalArgumentException exception) {
+            feedbackLabel.setText(exception.getMessage());
+            return;
+        }
         measurement.setMeasurementDateTime(measurementDateTime);
 
         OperationResult<HealthMeasurement> result = controller.addMeasurement(measurement);
