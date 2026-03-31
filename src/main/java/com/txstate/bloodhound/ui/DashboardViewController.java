@@ -2,6 +2,7 @@ package com.txstate.bloodhound.ui;
 
 import com.txstate.bloodhound.model.HealthMeasurement;
 import com.txstate.bloodhound.model.MetricPoint;
+import com.txstate.bloodhound.util.OperationResult;
 import com.txstate.bloodhound.service.AnalyticsService;
 import com.txstate.bloodhound.service.ChartDataService;
 import com.txstate.bloodhound.service.MeasurementService;
