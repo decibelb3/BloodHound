@@ -10,14 +10,16 @@ import com.txstate.bloodhound.service.ChartDataService;
 import com.txstate.bloodhound.service.MeasurementService;
 import com.txstate.bloodhound.ui.AppState;
 import com.txstate.bloodhound.ui.DashboardViewController;
+import com.txstate.bloodhound.ui.DashboardView;
 import com.txstate.bloodhound.ui.LoginViewController;
+import com.txstate.bloodhound.ui.LoginView;
 import com.txstate.bloodhound.ui.RegisterViewController;
+import com.txstate.bloodhound.ui.RegistrationView;
+import com.txstate.bloodhound.model.User;
 import com.txstate.bloodhound.util.DatabaseConfig;
 import com.txstate.bloodhound.util.DatabaseConnectionManager;
 import javafx.application.Application;
 import javafx.scene.Scene;
-import javafx.scene.control.Label;
-import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 /**
@@ -26,9 +28,17 @@ import javafx.stage.Stage;
  * This class wires placeholder layers and starts an empty JavaFX shell.
  */
 public class BloodHoundApplication extends Application {
+    private static final double APP_WIDTH = 960;
+    private static final double APP_HEIGHT = 640;
+
+    private AppState appState;
+
+    private Stage primaryStage;
 
     @Override
     public void start(Stage primaryStage) {
+        this.primaryStage = primaryStage;
+
         // Centralized connection settings for DAO construction.
         DatabaseConnectionManager connectionManager = new DatabaseConnectionManager(
                 DatabaseConfig.DB_URL,
@@ -43,30 +53,60 @@ public class BloodHoundApplication extends Application {
         MeasurementService measurementService = new MeasurementService(measurementDao);
         ChartDataService chartDataService = new ChartDataService(measurementDao);
         AnalyticsService analyticsService = new AnalyticsService(measurementDao, chartDataService);
-        AppState appState = new AppState();
+        appState = new AppState();
 
-        // UI controller placeholders.
+        // UI controllers.
         LoginViewController loginController = new LoginViewController(authService, appState);
         RegisterViewController registerController = new RegisterViewController(authService, appState);
         DashboardViewController dashboardController =
                 new DashboardViewController(appState, measurementService, analyticsService, chartDataService);
 
-        // Suppress unused warnings while shell is intentionally minimal.
-        if (loginController == null || registerController == null || dashboardController == null) {
-            throw new IllegalStateException("UI controllers failed to initialize.");
+        loginView = new LoginView(loginController, this::showRegistrationScene, this::showDashboardScene);
+        registrationView = new RegistrationView(registerController, this::showLoginScene, this::showLoginScene);
+
+        // Keep controller referenced in scope for future dashboard feature wiring.
+        if (dashboardController == null) {
+            throw new IllegalStateException("Dashboard controller was not initialized.");
         }
 
-        VBox root = new VBox(12);
-        root.getChildren().addAll(
-                new Label("BloodHound 2.0"),
-                new Label("JavaFX multi-user shell initialized."),
-                new Label("Login/register/dashboard flows are scaffolded and ready for implementation."));
-        root.setStyle("-fx-padding: 20;");
+        showLoginScene();
+    }
 
-        Scene scene = new Scene(root, 840, 520);
+    private LoginView loginView;
+    private RegistrationView registrationView;
+
+    private void showLoginScene() {
+        if (loginView == null) {
+            throw new IllegalStateException("Login view was not initialized.");
+        }
+        Scene scene = new Scene(loginView.build(), APP_WIDTH, APP_HEIGHT);
+        primaryStage.setTitle("BloodHound 2.0 - Login");
+        primaryStage.setScene(scene);
+        primaryStage.show();
+    }
+
+    private void showRegistrationScene() {
+        if (registrationView == null) {
+            throw new IllegalStateException("Registration view was not initialized.");
+        }
+        Scene scene = new Scene(registrationView.build(), APP_WIDTH, APP_HEIGHT);
+        primaryStage.setTitle("BloodHound 2.0 - Register");
+        primaryStage.setScene(scene);
+        primaryStage.show();
+    }
+
+    private void showDashboardScene(User user) {
+        DashboardView dashboardView = new DashboardView(user);
+        dashboardView.getLogoutButton().setOnAction(event -> logoutToLogin());
+        Scene scene = new Scene(dashboardView.getRoot(), APP_WIDTH, APP_HEIGHT);
         primaryStage.setTitle("BloodHound 2.0");
         primaryStage.setScene(scene);
         primaryStage.show();
+    }
+
+    private void logoutToLogin() {
+        appState.setCurrentUser(null);
+        showLoginScene();
     }
 
     public static void main(String[] args) {
