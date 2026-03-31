@@ -32,8 +32,8 @@ public class BloodHoundApplication extends Application {
     private static final double APP_HEIGHT = 640;
 
     private AppState appState;
-
     private Stage primaryStage;
+    private DashboardViewController dashboardController;
 
     @Override
     public void start(Stage primaryStage) {
@@ -58,8 +58,7 @@ public class BloodHoundApplication extends Application {
         // UI controllers.
         LoginViewController loginController = new LoginViewController(authService, appState);
         RegisterViewController registerController = new RegisterViewController(authService, appState);
-        DashboardViewController dashboardController =
-                new DashboardViewController(appState, measurementService, analyticsService, chartDataService);
+        dashboardController = new DashboardViewController(appState, measurementService, analyticsService, chartDataService);
 
         loginView = new LoginView(loginController, this::showRegistrationScene, this::showDashboardScene);
         registrationView = new RegistrationView(registerController, this::showLoginScene, this::showLoginScene);
@@ -96,7 +95,7 @@ public class BloodHoundApplication extends Application {
     }
 
     private void showDashboardScene(User user) {
-        DashboardView dashboardView = new DashboardView(user);
+        DashboardView dashboardView = new DashboardView(dashboardController, user, this::logoutToLogin);
         dashboardView.getLogoutButton().setOnAction(event -> logoutToLogin());
         Scene scene = new Scene(dashboardView.getRoot(), APP_WIDTH, APP_HEIGHT);
         primaryStage.setTitle("BloodHound 2.0");

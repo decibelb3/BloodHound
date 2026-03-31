@@ -1,5 +1,6 @@
 package com.txstate.bloodhound.ui;
 
+import com.txstate.bloodhound.model.DashboardSummary;
 import com.txstate.bloodhound.model.HealthMeasurement;
 import com.txstate.bloodhound.model.MetricPoint;
 import com.txstate.bloodhound.util.OperationResult;
@@ -29,36 +30,141 @@ public class DashboardViewController {
         this.chartDataService = chartDataService;
     }
 
+    /**
+     * Loads dashboard summary for the currently authenticated user.
+     *
+     * @return operation result with dashboard summary
+     */
+    public OperationResult<DashboardSummary> loadDashboardSummary() {
+        Long userId = getCurrentUserId();
+        if (userId == null) {
+            return OperationResult.failure("Unable to load dashboard.", List.of("No authenticated user."));
+        }
+        try {
+            DashboardSummary summary = analyticsService.getDashboardSummary(userId);
+            return OperationResult.success("Dashboard summary loaded.", summary);
+        } catch (Exception exception) {
+            return OperationResult.failure("Unable to load dashboard summary.", List.of(exception.getMessage()));
+        }
+    }
+
+    /**
+     * Loads dashboard summary for the currently authenticated user in a date range.
+     *
+     * @param startInclusive start timestamp
+     * @param endInclusive end timestamp
+     * @return operation result with range-based summary
+     */
+    public OperationResult<DashboardSummary> loadDashboardSummary(LocalDateTime startInclusive,
+                                                                  LocalDateTime endInclusive) {
+        Long userId = getCurrentUserId();
+        if (userId == null) {
+            return OperationResult.failure("Unable to load dashboard.", List.of("No authenticated user."));
+        }
+        try {
+            DashboardSummary summary = analyticsService.getDashboardSummaryForDateRange(userId, startInclusive, endInclusive);
+            return OperationResult.success("Range dashboard summary loaded.", summary);
+        } catch (Exception exception) {
+            return OperationResult.failure("Unable to load range dashboard summary.", List.of(exception.getMessage()));
+        }
+    }
+
     public List<HealthMeasurement> loadCurrentUserMeasurements() {
-        // TODO: Implement UI data loading.
-        throw new UnsupportedOperationException("Not implemented yet.");
+        Long userId = getCurrentUserId();
+        if (userId == null) {
+            return List.of();
+        }
+        return measurementService.getMeasurementHistory(userId);
     }
 
     public List<HealthMeasurement> loadCurrentUserMeasurements(LocalDateTime startInclusive, LocalDateTime endInclusive) {
-        // TODO: Implement UI range filtering action.
-        throw new UnsupportedOperationException("Not implemented yet.");
+        Long userId = getCurrentUserId();
+        if (userId == null) {
+            return List.of();
+        }
+        OperationResult<List<HealthMeasurement>> result =
+                measurementService.getMeasurementsByDateRange(userId, startInclusive, endInclusive);
+        if (!result.isSuccess() || result.getData() == null) {
+            return List.of();
+        }
+        return result.getData();
     }
 
     public HealthMeasurement createMeasurement(HealthMeasurement measurement) {
-        // TODO: Implement create action binding.
-        throw new UnsupportedOperationException("Not implemented yet.");
+        Long userId = getCurrentUserId();
+        if (userId == null) {
+            return null;
+        }
+        OperationResult<HealthMeasurement> result = measurementService.addMeasurement(userId, measurement);
+        if (!result.isSuccess()) {
+            return null;
+        }
+        return result.getData();
     }
 
     public HealthMeasurement updateMeasurement(HealthMeasurement measurement) {
-        // TODO: Implement update action binding.
-        throw new UnsupportedOperationException("Not implemented yet.");
+        Long userId = getCurrentUserId();
+        if (userId == null) {
+            return null;
+        }
+        OperationResult<HealthMeasurement> result = measurementService.updateMeasurement(userId, measurement);
+        if (!result.isSuccess()) {
+            return null;
+        }
+        return result.getData();
     }
 
     public boolean deleteMeasurement(Long measurementId) {
-        // TODO: Implement delete action binding.
-        throw new UnsupportedOperationException("Not implemented yet.");
+        Long userId = getCurrentUserId();
+        if (userId == null) {
+            return false;
+        }
+        OperationResult<Void> result = measurementService.deleteMeasurement(userId, measurementId);
+        return result.isSuccess();
     }
 
     public List<MetricPoint> loadTrendPoints(String metricKey,
                                             LocalDateTime startInclusive,
                                             LocalDateTime endInclusive) {
-        // TODO: Implement chart data loading.
-        throw new UnsupportedOperationException("Not implemented yet.");
+        Long userId = getCurrentUserId();
+        if (userId == null) {
+            return List.of();
+        }
+        try {
+            if ("systolic".equalsIgnoreCase(metricKey)) {
+                return startInclusive == null || endInclusive == null
+                        ? chartDataService.getSystolicTrend(userId)
+                        : chartDataService.getSystolicTrend(userId, startInclusive, endInclusive);
+            }
+            if ("diastolic".equalsIgnoreCase(metricKey)) {
+                return startInclusive == null || endInclusive == null
+                        ? chartDataService.getDiastolicTrend(userId)
+                        : chartDataService.getDiastolicTrend(userId, startInclusive, endInclusive);
+            }
+            if ("totalCholesterol".equalsIgnoreCase(metricKey) || "cholesterol".equalsIgnoreCase(metricKey)) {
+                return startInclusive == null || endInclusive == null
+                        ? chartDataService.getTotalCholesterolTrend(userId)
+                        : chartDataService.getTotalCholesterolTrend(userId, startInclusive, endInclusive);
+            }
+            if ("hdl".equalsIgnoreCase(metricKey)) {
+                return startInclusive == null || endInclusive == null
+                        ? chartDataService.getHdlTrend(userId)
+                        : chartDataService.getHdlTrend(userId, startInclusive, endInclusive);
+            }
+            if ("ldl".equalsIgnoreCase(metricKey)) {
+                return startInclusive == null || endInclusive == null
+                        ? chartDataService.getLdlTrend(userId)
+                        : chartDataService.getLdlTrend(userId, startInclusive, endInclusive);
+            }
+            if ("weight".equalsIgnoreCase(metricKey)) {
+                return startInclusive == null || endInclusive == null
+                        ? chartDataService.getWeightTrend(userId)
+                        : chartDataService.getWeightTrend(userId, startInclusive, endInclusive);
+            }
+            return List.of();
+        } catch (Exception exception) {
+            return List.of();
+        }
     }
 
     public MeasurementService getMeasurementService() {
@@ -75,5 +181,12 @@ public class DashboardViewController {
 
     public AppState getAppState() {
         return appState;
+    }
+
+    private Long getCurrentUserId() {
+        if (appState.getCurrentUser() == null) {
+            return null;
+        }
+        return appState.getCurrentUser().getUserId();
     }
 }
