@@ -109,24 +109,44 @@ public class DashboardViewController {
     }
 
     public HealthMeasurement updateMeasurement(HealthMeasurement measurement) {
-        Long userId = getCurrentUserId();
-        if (userId == null) {
-            return null;
-        }
-        OperationResult<HealthMeasurement> result = measurementService.updateMeasurement(userId, measurement);
+        OperationResult<HealthMeasurement> result = updateMeasurementResult(measurement);
         if (!result.isSuccess()) {
             return null;
         }
         return result.getData();
     }
 
-    public boolean deleteMeasurement(Long measurementId) {
+    /**
+     * Updates a measurement for the currently authenticated user.
+     *
+     * @param measurement updated measurement payload
+     * @return operation result with updated measurement
+     */
+    public OperationResult<HealthMeasurement> updateMeasurementResult(HealthMeasurement measurement) {
         Long userId = getCurrentUserId();
         if (userId == null) {
-            return false;
+            return OperationResult.failure("Unable to update measurement.", List.of("No authenticated user."));
         }
-        OperationResult<Void> result = measurementService.deleteMeasurement(userId, measurementId);
+        return measurementService.updateMeasurement(userId, measurement);
+    }
+
+    public boolean deleteMeasurement(Long measurementId) {
+        OperationResult<Void> result = deleteMeasurementResult(measurementId);
         return result.isSuccess();
+    }
+
+    /**
+     * Deletes a measurement for the currently authenticated user.
+     *
+     * @param measurementId measurement id to delete
+     * @return operation result describing delete outcome
+     */
+    public OperationResult<Void> deleteMeasurementResult(Long measurementId) {
+        Long userId = getCurrentUserId();
+        if (userId == null) {
+            return OperationResult.failure("Unable to delete measurement.", List.of("No authenticated user."));
+        }
+        return measurementService.deleteMeasurement(userId, measurementId);
     }
 
     public List<MetricPoint> loadTrendPoints(String metricKey,
